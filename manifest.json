@@ -3,19 +3,24 @@
   "short_name": "Luma",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#f3e8ff",
   "theme_color": "#a855f7",
-  "orientation": "any",
+  "orientation": "portrait",
   "scope": "/",
   "id": "/",
   "description": "A minimalist study companion for secondary school subjects, featuring timers and organized notes.",
   "lang": "en",
+  "dir": "auto",
   "categories": [
     "books",
     "education",
     "productivity",
     "utilities"
   ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "iarc_rating_id": "",
   "icons": [
     {
       "src": "192.png",
@@ -23,7 +28,7 @@
       "type": "image/png",
       "purpose": "any"
     },
-        {
+    {
       "src": "512.png",
       "sizes": "512x512", 
       "type": "image/png",
@@ -42,6 +47,13 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
+      "label": "Study Dashboard"
+    },
+    {
+      "src": "Pic.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
       "label": "Study Dashboard"
     }
   ]
