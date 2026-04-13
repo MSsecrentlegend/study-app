@@ -1,0 +1,93 @@
+{
+  "title": "JavaScript Fundamentals Quiz",
+  "questions": [
+    {
+      "id": 1,
+      "text": "What does 'const' mean in JavaScript?",
+      "options": [
+        "A) A constant variable that cannot be reassigned",
+        "B) A function declaration",
+        "C) A class definition",
+        "D) A data type like string or number"
+      ],
+      "correct": 0
+    },
+    {
+      "id": 2,
+      "text": "Which method removes the last element from an array?",
+      "options": [
+        "A) remove()",
+        "B) pop()",
+        "C) shift()",
+        "D) splice()"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 3,
+      "text": "What is the difference between 'let' and 'var'?",
+      "options": [
+        "A) No difference at all",
+        "B) 'let' is block-scoped, 'var' is function-scoped",
+        "C) 'var' is newer than 'let'",
+        "D) 'let' only works in functions"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 4,
+      "text": "How do you create an object in JavaScript?",
+      "options": [
+        "A) var obj = new Object();",
+        "B) var obj = {};",
+        "C) var obj = Object.create();",
+        "D) All of the above"
+      ],
+      "correct": 3
+    },
+    {
+      "id": 5,
+      "text": "What does 'async/await' do?",
+      "options": [
+        "A) Creates background threads",
+        "B) Handles asynchronous operations with cleaner syntax",
+        "C) Makes all code run faster",
+        "D) Requires a special JavaScript engine"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 6,
+      "text": "What is a closure in JavaScript?",
+      "options": [
+        "A) A function that closes when done executing",
+        "B) A function that has access to variables in its outer scope",
+        "C) A type of error handling",
+        "D) A deprecated feature"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 7,
+      "text": "Which array method creates a new array with transformed elements?",
+      "options": [
+        "A) filter()",
+        "B) reduce()",
+        "C) map()",
+        "D) forEach()"
+      ],
+      "correct": 2
+    },
+    {
+      "id": 8,
+      "text": "What does 'this' refer to in JavaScript?",
+      "options": [
+        "A) Always the global object",
+        "B) The object that the method is called on",
+        "C) The currently executing function",
+        "D) Cannot be determined"
+      ],
+      "correct": 1
+    }
+  ]
+}

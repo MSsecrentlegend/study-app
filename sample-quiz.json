@@ -1,0 +1,60 @@
+{
+  "title": "Biology 101 Quiz",
+  "questions": [
+    {
+      "id": 1,
+      "text": "What is the powerhouse of the cell?",
+      "options": [
+        "A) Nucleus",
+        "B) Mitochondria",
+        "C) Ribosome",
+        "D) Endoplasmic Reticulum"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 2,
+      "text": "Which process do plants use to convert sunlight into energy?",
+      "options": [
+        "A) Respiration",
+        "B) Photosynthesis",
+        "C) Fermentation",
+        "D) Decomposition"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 3,
+      "text": "What is the basic unit of life?",
+      "options": [
+        "A) Atom",
+        "B) Molecule",
+        "C) Cell",
+        "D) Tissue"
+      ],
+      "correct": 2
+    },
+    {
+      "id": 4,
+      "text": "Which organism is a prokaryote?",
+      "options": [
+        "A) Human",
+        "B) Bacteria",
+        "C) Plant",
+        "D) Fungus"
+      ],
+      "correct": 1
+    },
+    {
+      "id": 5,
+      "text": "What does DNA stand for?",
+      "options": [
+        "A) Deoxyribonucleic Acid",
+        "B) Deoxyribose Nucleotide Arrangement",
+        "C) Deoxyribose Nitrogen Acid",
+        "D) Deoxidized Nucleic Acid"
+      ],
+      "correct": 0
+    }
+  ]
+}

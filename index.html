@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Dashboard - Focus & Learn</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="Pic.png">
+</head>
+<body>
+    <div class="dashboard-container" id="dashboardContainer">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1><img src="Pic.png" alt="Logo" class="logo-icon"> <span class="site-title">Study Dashboard</span></h1>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Studied</span>
+                        <span class="stat-value" id="totalTimeStudied">0h 0m</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Daily Streak</span>
+                        <span class="stat-value" id="dailyStreak">0 🔥</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn" id="subjectsToggle" title="Manage Subjects">📂 Subjects</button>
+                <select id="languageSelect" class="btn" style="min-width:90px;" title="Change Language">
+                    <option value="en">English</option>
+                    <option value="ar">العربية</option>
+                </select>
+                <button class="btn-focus-mode" id="focusModeToggle" title="Toggle Focus Mode">🎯</button>
+                <button class="btn-settings" id="settingsToggle" title="Settings">⚙️</button>
+                    <!-- Subjects Modal -->
+                    <div id="subjectsModal" class="modal hidden">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h2>Subjects</h2>
+                                <button class="modal-close" id="closeSubjects">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="subjectsList"></div>
+                                <div class="setting-item">
+                                    <input type="text" id="newSubjectName" placeholder="Add new subject...">
+                                    <button id="addSubjectBtn" class="btn btn-primary">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Navigation Tabs -->
+            <nav class="tab-navigation">
+                <button class="tab-btn active" data-tab="timer" title="Pomodoro Timer">⏱️ Timer</button>
+                <button class="tab-btn" data-tab="quiz" title="Quiz Engine">❓ Quiz</button>
+                <button class="tab-btn" data-tab="notes" title="Notes">📝 Notes</button>
+                <button class="tab-btn" data-tab="progress" title="Progress">📊 Progress</button>
+                <button class="tab-btn" data-tab="subjects-dashboard" title="Subjects Dashboard">📈 Subjects Dashboard</button>
+            </nav>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Timer Tab -->
+                <section id="timer" class="tab-pane active">
+                    <div class="timer-container">
+                        <div class="timer-display">
+                            <div class="timer-circle">
+                                <svg class="progress-ring" width="200" height="200">
+                                    <circle class="progress-ring-circle" cx="100" cy="100" r="90" />
+                                </svg>
+                                <div class="timer-text">
+                                    <span id="timerValue" class="timer-value">25:00</span>
+                                    <span id="timerLabel" class="timer-label">Work Time</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timer-controls">
+                            <button id="timerStart" class="btn btn-primary">Start</button>
+                            <button id="timerPause" class="btn btn-secondary" disabled>Pause</button>
+                            <button id="timerReset" class="btn btn-secondary">Reset</button>
+                        </div>
+
+                        <div class="timer-settings">
+                            <h3>Customize Intervals</h3>
+                            <div class="settings-group">
+                                <label>Work Duration (minutes)</label>
+                                <input type="number" id="workDuration" min="1" max="60" value="25" class="input-number">
+                            </div>
+                            <div class="settings-group">
+                                <label>Break Duration (minutes)</label>
+                                <input type="number" id="breakDuration" min="1" max="30" value="5" class="input-number">
+                            </div>
+                            <button id="applyTimerSettings" class="btn btn-secondary">Apply Settings</button>
+                        </div>
+
+                        <div class="timer-stats">
+                            <h3>Session Stats</h3>
+                            <div class="stats-list">
+                                <div class="stat-row">
+                                    <span>Sessions Completed:</span>
+                                    <span id="sessionsCompleted">0</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Total Breaks:</span>
+                                    <span id="totalBreaks">0</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Today's Focus:</span>
+                                    <span id="todaysFocus">0m</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quiz Tab -->
+                <section id="quiz" class="tab-pane">
+                    <div class="quiz-container">
+                        <!-- Quiz Upload -->
+                        <div class="quiz-upload">
+                            <h3>Load Quiz</h3>
+                            <div class="upload-group">
+                                <input type="file" id="quizFile" accept=".json" class="file-input">
+                                <button id="loadQuizBtn" class="btn btn-primary">Load Quiz JSON</button>
+                            </div>
+                            <div class="upload-group">
+                                <label for="quizSubject">Subject:</label>
+                                <select id="quizSubject"></select>
+                            </div>
+                            <details class="quiz-format-help">
+                                <summary>📋 Quiz JSON Format</summary>
+                                <pre><code>{
+  "title": "Biology Quiz",
+  "questions": [
+    {
+      "id": 1,
+      "text": "What is photosynthesis?",
+      "options": ["A) Energy source", "B) Plant growth", "C) Light conversion"],
+      "correct": 2
+    }
+  ]
+}</code></pre>
+                            </details>
+                        </div>
+
+                        <!-- Quiz Session -->
+                        <div id="quizSession" class="quiz-session hidden">
+                            <div class="quiz-header">
+                                <h2 id="quizTitle">Quiz</h2>
+                                <div class="quiz-progress">
+                                    <span id="questionProgress">1 / 10</span>
+                                    <div class="progress-bar">
+                                        <div id="progressFill" class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quiz-content">
+                                <div class="question-box">
+                                    <h3 id="questionText">Question text here</h3>
+                                    <div id="optionsContainer" class="options-container"></div>
+                                </div>
+
+                                <div class="spaced-repetition-indicator">
+                                    <span id="repetitionFlag" class="rep-flag hidden">⚠️ Review Needed</span>
+                                </div>
+
+                                <div class="quiz-navigation">
+                                    <button id="prevQuestion" class="btn btn-secondary">← Previous</button>
+                                    <button id="nextQuestion" class="btn btn-primary">Next →</button>
+                                    <button id="submitQuiz" class="btn btn-success hidden">Submit Quiz</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quiz Results -->
+                        <div id="quizResults" class="quiz-results hidden">
+                            <h2>Quiz Results</h2>
+                            <div class="results-summary">
+                                <div class="result-stat">
+                                    <span class="result-label">Score</span>
+                                    <span class="result-value" id="finalScore">0%</span>
+                                </div>
+                                <div class="result-stat">
+                                    <span class="result-label">Correct</span>
+                                    <span class="result-value" id="correctCount">0/0</span>
+                                </div>
+                            </div>
+
+                            <div id="reviewContainer" class="review-container"></div>
+
+                            <div class="results-actions">
+                                <button id="retakeQuiz" class="btn btn-primary">Retake Quiz</button>
+                                <button id="backToQuiz" class="btn btn-secondary">Back to Load</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Notes Tab -->
+                <section id="notes" class="tab-pane">
+                    <div class="notes-container">
+                        <div class="notes-editor">
+                            <div class="editor-header">
+                                <input type="text" id="noteTitle" placeholder="Note title..." class="note-title-input">
+                                <select id="noteSubject" class="btn" style="margin-left:1em;"></select>
+                                <div class="editor-actions">
+                                    <button id="saveNote" class="btn btn-primary">💾 Save</button>
+                                    <button id="deleteNote" class="btn btn-danger">🗑️ Delete</button>
+                                </div>
+                            </div>
+                            <div class="markdown-editor">
+                                <textarea id="noteContent" placeholder="Write your notes... (Markdown supported)&#10;&#10;# Heading 1&#10;**bold** *italic* `code`"></textarea>
+                                <div id="notePreview" class="note-preview"></div>
+                            </div>
+                        </div>
+
+                        <div class="notes-list">
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <h3>Your Notes</h3>
+                                <select id="notesFilterSubject" class="btn" style="max-width:150px;"></select>
+                            </div>
+                            <div id="notesList" class="notes-list-items"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Progress Tab -->
+                <section id="progress" class="tab-pane">
+                    <div class="progress-container">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <h2>Study Progress</h2>
+                            <select id="progressFilterSubject" class="btn" style="max-width:150px;"></select>
+                        </div>
+
+                        <div class="progress-grid">
+                            <div class="progress-card">
+                                <h3>Daily Goal Tracking</h3>
+                                <div id="dailyGoalChart" class="chart-placeholder">
+                                    <canvas id="dailyGoalCanvas"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="progress-card">
+                                <h3>Quiz Performance</h3>
+                                <div id="quizPerformanceChart" class="chart-placeholder">
+                                    <canvas id="quizPerformanceCanvas"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="progress-card">
+                                <h3>Study Streaks</h3>
+                                <div class="streak-calendar" id="streakCalendar"></div>
+                            </div>
+
+                            <div class="progress-card">
+                                <h3>Spaced Repetition Queue</h3>
+                                <div id="repetitionQueue" class="repetition-queue"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-actions">
+                            <button id="exportData" class="btn btn-secondary">📥 Export Data</button>
+                            <button id="importData" class="btn btn-secondary">📤 Import Data</button>
+                            <input type="file" id="importFile" accept=".json" class="hidden">
+                            <button id="clearAllData" class="btn btn-danger">Clear All Data</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Subjects Dashboard Tab -->
+                <section id="subjects-dashboard" class="tab-pane">
+                    <div class="subjects-dashboard-container">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <h2>Subjects Dashboard</h2>
+                            <select id="subjectsDashboardFilter" class="btn" style="max-width:150px;"></select>
+                        </div>
+                        <div id="subjectsAnalytics" class="subjects-analytics-grid">
+                            <!-- Analytics cards will be rendered here by JS -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="modal-close" id="closeSettings">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="soundToggle" checked>
+                            Enable Sound Notifications
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            Theme:
+                            <select id="themeSelect">
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
