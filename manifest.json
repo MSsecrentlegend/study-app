@@ -43,7 +43,7 @@
   ],
   "screenshots": [
     {
-      "src": "Pic.png",
+      "src": "screenshot1.png",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
@@ -56,5 +56,95 @@
       "form_factor": "narrow",
       "label": "Study Dashboard"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Timer",
+      "short_name": "Timer",
+      "description": "Quickly start a study timer",
+      "url": "/timer",
+      "icons": [
+        {
+          "src": "192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "View Notes",
+      "short_name": "Notes",
+      "description": "Access your study notes",
+      "url": "/notes",
+      "icons": [
+        {
+          "src": "192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".json"],
+        "video/mp4": [".mp4"],
+        "application/pdf": [".pdf"]
+      },
+      "icons": [
+        {
+          "src": "192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "launch_handler": {
+    "client_mode": ["navigate-new", "auto"]
+  },
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["application/json", "video/mp4", "application/pdf"]
+        }
+      ]
+    }
+  },
+  "widgets": [
+    {
+      "name": "Study Timer Widget",
+      "short_name": "Timer",
+      "description": "Quick access to your study timer",
+      "tag": "timer-widget",
+      "template": "black",
+      "data_uri": "/widget/timer",
+      "screenshots": [
+        {
+          "src": "192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "form_factor": "all"
+        }
+      ]
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "note_taking": {
+    "new_note_url": "/new-note"
+  },
+  "handle_links": true,
+  "prefer_sync": true
 }
