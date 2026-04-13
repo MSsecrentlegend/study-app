@@ -3,20 +3,37 @@
   "short_name": "Luma",
   "description": "A progressive web app for focused studying with timers, quizzes, and notes",
   "start_url": "/",
+  "id": "luma-study-dashboard",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#E6E6FA",
-  "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     {
       "src": "Pic.png",
-      "sizes": "any",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "Pic.png",
-      "sizes": "any",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "Pic.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "Pic.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
@@ -28,9 +45,85 @@
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow"
+    },
+    {
+      "src": "Pic.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ],
-  "scope": "/",
-  "lang": "en",
-  "dir": "ltr"
+  "shortcuts": [
+    {
+      "name": "Start Timer",
+      "short_name": "Timer",
+      "description": "Quick access to the Pomodoro timer",
+      "url": "/?tab=timer",
+      "icons": [
+        {
+          "src": "Pic.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Take Quiz",
+      "short_name": "Quiz",
+      "description": "Launch the quiz tool",
+      "url": "/?tab=quiz",
+      "icons": [
+        {
+          "src": "Pic.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Write Notes",
+      "short_name": "Notes",
+      "description": "Open the notes editor",
+      "url": "/?tab=notes",
+      "icons": [
+        {
+          "src": "Pic.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "quiz_file",
+          "accept": ["application/json"]
+        }
+      ]
+    }
+  },
+  "note_taking": {
+    "new_note_url": "/?tab=notes"
+  },
+  "launch_handler": {
+    "client_mode": ["navigate-new", "auto"]
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+lumaquiz",
+      "url": "/?quiz=%s"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "scope_extensions": [
+    {
+      "origin": "https://example.com"
+    }
+  ]
 }
