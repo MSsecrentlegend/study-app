@@ -44,7 +44,7 @@
   "screenshots": [
     {
       "src": "screenshot1.png",
-      "sizes": "1280x720",
+      "sizes": "1234x875",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Study Dashboard"
