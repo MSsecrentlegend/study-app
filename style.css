@@ -1186,6 +1186,190 @@ body.focus-mode .timer-stats {
 }
 
 /* ============================================================================
+   TOUCH-FRIENDLY UI & MOBILE OPTIMIZATION
+   ============================================================================ */
+
+/* Ensure minimum touch target size (48x48px recommended) */
+@media (hover: none) and (pointer: coarse) {
+    .btn,
+    button,
+    .tab-btn,
+    .option-btn,
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    select {
+        min-height: 48px;
+        min-width: 48px;
+        padding: 0.75rem 1rem;
+    }
+
+    .btn-focus-mode,
+    .btn-settings {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+    }
+
+    /* Increase touch spacing between interactive elements */
+    .header-actions {
+        gap: 1.5rem;
+    }
+
+    .tab-navigation {
+        gap: 1rem;
+    }
+
+    .timer-controls {
+        gap: 1.5rem;
+    }
+
+    .quiz-navigation {
+        gap: 1.5rem;
+    }
+
+    .options-container {
+        gap: 1.5rem;
+    }
+
+    .results-actions {
+        gap: 1.5rem;
+    }
+
+    /* Larger text for better readability */
+    body {
+        font-size: 16px;
+    }
+
+    .btn,
+    button,
+    .option-btn {
+        font-size: 1.125rem;
+    }
+
+    /* Better label visibility on touch */
+    input {
+        font-size: 16px;
+    }
+}
+
+/* Vertical phone screens (max-width: 480px) */
+@media (max-width: 480px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 100%;
+    }
+
+    .header-stats {
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .timer-container {
+        gap: 1.5rem;
+    }
+
+    .timer-settings,
+    .timer-stats {
+        width: 100%;
+    }
+
+    .notes-container {
+        gap: 1rem;
+    }
+
+    .markdown-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .quiz-container {
+        padding: 0 1rem;
+    }
+
+    .results-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ultra-wide mobile (max-width: 320px extreme small phones) */
+@media (max-width: 320px) {
+    .timer-value {
+        font-size: 2.5rem;
+    }
+
+    .timer-container {
+        gap: 1rem;
+    }
+
+    .btn,
+    button {
+        font-size: 1rem;
+        padding: 0.675rem 0.875rem;
+    }
+
+    .tab-btn {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .header-stats {
+        flex-direction: row;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Landscape orientation optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+    .dashboard-header {
+        padding: 0.75rem;
+        gap: 1rem;
+    }
+
+    .header-content {
+        gap: 1rem;
+    }
+
+    .timer-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .timer-circle {
+        width: 160px;
+        height: 160px;
+    }
+
+    .timer-value {
+        font-size: 2.5rem;
+    }
+
+    .tab-content {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .notes-editor {
+        height: 400px;
+    }
+}
+
+/* ============================================================================
    UTILITY CLASSES
    ============================================================================ */
 

@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E6E6FA">
+    <meta name="description" content="A progressive web app for focused studying with timers, quizzes, and notes">
     <title>Study Dashboard - Focus & Learn</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="Pic.png">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div class="dashboard-container" id="dashboardContainer">
@@ -317,5 +320,31 @@
     </div>
 
     <script src="script.js"></script>
+
+    <!-- Service Worker Registration for PWA -->
+    <script>
+        // Register Service Worker for offline functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then((registration) => {
+                        console.log('Service Worker registered successfully:', registration);
+                        
+                        // Check for updates periodically
+                        setInterval(() => {
+                            registration.update();
+                        }, 60000); // Check every minute
+                    })
+                    .catch((error) => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+
+            // Handle Service Worker updates
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('Service Worker controller changed - app updated');
+            });
+        }
+    </script>
 </body>
 </html>

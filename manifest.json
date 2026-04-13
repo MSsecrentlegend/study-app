@@ -1,0 +1,36 @@
+{
+  "name": "Luma Study Dashboard",
+  "short_name": "Luma",
+  "description": "A progressive web app for focused studying with timers, quizzes, and notes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E6E6FA",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "Pic.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "Pic.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [
+    {
+      "src": "Pic.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr"
+}
