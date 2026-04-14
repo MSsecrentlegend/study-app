@@ -1765,6 +1765,8 @@ function updateLanguageUI(lang) {
     if (tabBtns[1]) tabBtns[1].textContent = '❓ ' + t.quiz;
     if (tabBtns[2]) tabBtns[2].textContent = '📝 ' + t.notes;
     if (tabBtns[3]) tabBtns[3].textContent = '📊 ' + t.progress;
+    if (tabBtns[4]) tabBtns[4].textContent = '🎥 ' + t.lectures;
+    if (tabBtns[5]) tabBtns[5].textContent = '📁 ' + t.files;
     // Timer
     const timerStart = document.getElementById('timerStart');
     if (timerStart) timerStart.textContent = t.start;
