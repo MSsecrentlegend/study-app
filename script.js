@@ -1358,9 +1358,10 @@ class LecturesManager {
 
     static init(storage) {
         this.storage = storage;
-        this.lectures = this.loadLectures();
-        this.render();
+        this.lectures = {};
         this.setupEventListeners();
+        // Load from server (not localStorage)
+        this.loadLecturesFromServer();
     }
 
     static loadLectures() {
@@ -1527,9 +1528,10 @@ class FilesManager {
 
     static init(storage) {
         this.storage = storage;
-        this.files = this.loadFiles();
-        this.render();
+        this.files = {};
         this.setupEventListeners();
+        // Load from server (not localStorage)
+        this.loadFilesFromServer();
     }
 
     static loadFiles() {
