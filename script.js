@@ -1229,7 +1229,6 @@ class AdminAuth {
         const closeAdminModal = document.getElementById('closeAdminModal');
         const adminLoginBtn = document.getElementById('adminLoginBtn');
         const adminPasswordInput = document.getElementById('adminPassword');
-        const setAdminPasswordBtn = document.getElementById('setAdminPasswordBtn');
 
         if (adminModeBtn) {
             adminModeBtn.addEventListener('click', () => this.openAdminModal());
@@ -1250,9 +1249,6 @@ class AdminAuth {
                 if (e.key === 'Enter') this.attemptLogin();
             });
         }
-        if (setAdminPasswordBtn) {
-            setAdminPasswordBtn.addEventListener('click', () => this.setPassword());
-        }
     }
 
     static openAdminModal() {
@@ -1261,32 +1257,12 @@ class AdminAuth {
         document.getElementById('adminMessage').classList.add('hidden');
     }
 
-    static setPassword() {
-        const password = document.getElementById('adminPasswordInput').value.trim();
-        if (!password) {
-            alert('Please enter a password');
-            return;
-        }
-        // Simple hash for password storage (use proper hashing in production)
-        const hashedPassword = btoa(password);
-        this.storage.set('adminPassword', hashedPassword);
-        alert('Admin password set successfully!');
-        document.getElementById('adminPasswordInput').value = '';
-    }
-
     static attemptLogin() {
         const input = document.getElementById('adminPassword').value;
         const hashedInput = btoa(input);
-        const storedPassword = this.storage.get('adminPassword');
+        const ADMIN_PASSWORD = btoa('1pisbest'); // Hardcoded admin password
 
-        if (!storedPassword) {
-            const messageEl = document.getElementById('adminMessage');
-            messageEl.textContent = 'No admin password set. Set one in Settings first.';
-            messageEl.classList.remove('hidden');
-            return;
-        }
-
-        if (hashedInput === storedPassword) {
+        if (hashedInput === ADMIN_PASSWORD) {
             this.isAdminLoggedIn = true;
             this.showAdminUploadArea();
             document.getElementById('adminModal').classList.add('hidden');
@@ -1756,7 +1732,7 @@ const LANGUAGES = {
         workTime: 'وقت العمل',
         breakTime: 'وقت الاستراحة',
         lectures: 'المحاضرات',
-        المحاضرات: 'المحاضرات',
+        lectures: 'المحاضرات',
         files: 'الملفات',
         adminMode: 'وضع المسؤول',
         uploadVideo: 'تحميل فيديو المحاضرة',
@@ -1771,7 +1747,8 @@ const LANGUAGES = {
         filesCount: 'ملفات',
         uploadLectureVideo: 'تحميل فيديو المحاضرة',
         lectureVideos: 'فيديوهات المحاضرات',
-        filesManagement: 'إدارة الملفات',
+        filesManagement: 'إدارة الملفات'
+    }
 };
 
 function updateLanguageUI(lang) {
