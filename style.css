@@ -962,6 +962,61 @@ body {
     padding: 1.5rem;
 }
 
+/* Quiz Name Modal */
+.quiz-name-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+}
+
+.quiz-name-modal.hidden {
+    display: none;
+}
+
+.quiz-name-modal .modal-content {
+    background-color: var(--surface-color);
+    border-radius: 0.75rem;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: var(--shadow-lg);
+    padding: 2rem;
+    text-align: center;
+}
+
+.quiz-name-modal h2 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.quiz-name-modal p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.student-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    box-sizing: border-box;
+}
+
+.student-name-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
 .setting-item {
     margin-bottom: 1.5rem;
 }

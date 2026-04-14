@@ -489,6 +489,7 @@ class QuizEngine {
     constructor(storage) {
         this.storage = storage;
         this.currentQuiz = null;
+        this.studentName = '';
         this.userAnswers = [];
         this.currentQuestion = 0;
         this.reviewQueue = [];
@@ -510,6 +511,14 @@ class QuizEngine {
         document.getElementById('submitQuiz').addEventListener('click', () => this.submitQuiz());
         document.getElementById('retakeQuiz').addEventListener('click', () => this.resetQuiz());
         document.getElementById('backToQuiz').addEventListener('click', () => this.backToLoad());
+        
+        // New: Student name modal
+        document.getElementById('startQuizBtn').addEventListener('click', () => this.confirmStartQuiz());
+        document.getElementById('studentName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.confirmStartQuiz();
+            }
+        });
     }
 
     handleQuizUpload() {
@@ -521,7 +530,7 @@ class QuizEngine {
         reader.onload = (e) => {
             try {
                 const quiz = JSON.parse(e.target.result);
-                this.startQuiz(quiz);
+                this.showNameModal(quiz);
             } catch (error) {
                 alert('Invalid JSON file: ' + error.message);
             }
@@ -529,12 +538,29 @@ class QuizEngine {
         reader.readAsText(file);
     }
 
-    startQuiz(quiz) {
+    showNameModal(quiz) {
         this.currentQuiz = quiz;
+        document.querySelector('.quiz-upload').classList.add('hidden');
+        document.getElementById('quizNameModal').classList.remove('hidden');
+        document.getElementById('studentName').value = '';
+        document.getElementById('studentName').focus();
+    }
+
+    confirmStartQuiz() {
+        const name = document.getElementById('studentName').value.trim();
+        if (!name) {
+            alert('Please enter your name');
+            return;
+        }
+        this.studentName = name;
+        document.getElementById('quizNameModal').classList.add('hidden');
+        this.startQuiz(this.currentQuiz);
+    }
+
+    startQuiz(quiz) {
         this.userAnswers = new Array(quiz.questions.length).fill(null);
         this.currentQuestion = 0;
 
-        document.querySelector('.quiz-upload').classList.add('hidden');
         document.getElementById('quizSession').classList.remove('hidden');
         document.getElementById('quizResults').classList.add('hidden');
 
@@ -623,18 +649,46 @@ class QuizEngine {
         // Add wrong answers to spaced repetition queue
         this.addToReviewQueue(wrongAnswers);
 
-        // Save quiz result
+        // Save quiz result locally
         const results = this.storage.get('quizResults', []);
         results.push({
             quizTitle: this.currentQuiz.title,
             date: new Date().toISOString(),
             score: score,
             correctCount: correctCount,
-            totalQuestions: this.currentQuiz.questions.length
+            totalQuestions: this.currentQuiz.questions.length,
+            studentName: this.studentName
         });
         this.storage.set('quizResults', results);
 
+        // Save to server
+        this.saveResultToServer(score);
+
         this.displayResults(correctCount, wrongAnswers, score);
+    }
+
+    saveResultToServer(score) {
+        const resultData = {
+            name: this.studentName,
+            quizTitle: this.currentQuiz.title,
+            score: score,
+            date: new Date().toISOString()
+        };
+
+        fetch('/api/quiz-results', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(resultData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Quiz result saved to server:', data);
+        })
+        .catch(error => {
+            console.error('Error saving quiz result:', error);
+        });
     }
 
     addToReviewQueue(wrongAnswers) {
@@ -698,12 +752,14 @@ class QuizEngine {
 
     resetQuiz() {
         this.currentQuiz = null;
+        this.studentName = '';
         this.userAnswers = [];
         this.currentQuestion = 0;
 
         document.querySelector('.quiz-upload').classList.remove('hidden');
         document.getElementById('quizSession').classList.add('hidden');
         document.getElementById('quizResults').classList.add('hidden');
+        document.getElementById('quizNameModal').classList.add('hidden');
 
         document.getElementById('quizFile').value = '';
     }
@@ -1330,17 +1386,18 @@ class LecturesManager {
             });
         }
 
-        if (uploadBtn) {
+        if (uploadBtn && fileInput) {
             uploadBtn.addEventListener('click', () => {
                 if (!AdminAuth.isAdmin()) {
                     alert('Admin mode required to upload videos');
                     return;
                 }
-                if (fileInput.files.length === 0) {
-                    alert('Please select a file');
-                    return;
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    this.uploadLecture(e.target.files[0]);
                 }
-                this.uploadLecture(fileInput.files[0]);
             });
         }
     }
@@ -1490,17 +1547,18 @@ class FilesManager {
             });
         }
 
-        if (uploadBtn) {
+        if (uploadBtn && fileInput) {
             uploadBtn.addEventListener('click', () => {
                 if (!AdminAuth.isAdmin()) {
                     alert('Admin mode required to upload files');
                     return;
                 }
-                if (fileInput.files.length === 0) {
-                    alert('Please select a file');
-                    return;
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    this.uploadFile(e.target.files[0]);
                 }
-                this.uploadFile(fileInput.files[0]);
             });
         }
     }
