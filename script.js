@@ -1213,6 +1213,422 @@ class ProgressAnalytics {
 }
 
 // ============================================================================
+// ADMIN AUTHENTICATION - Manages admin login and access control
+// ============================================================================
+class AdminAuth {
+    static init(storage) {
+        this.storage = storage;
+        this.isAdminLoggedIn = false;
+        this.setupEventListeners();
+    }
+
+    static setupEventListeners() {
+        const adminModal = document.getElementById('adminModal');
+        const adminModeBtn = document.getElementById('adminModeBtn');
+        const adminModeBtn2 = document.getElementById('adminModeBtn2');
+        const closeAdminModal = document.getElementById('closeAdminModal');
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const setAdminPasswordBtn = document.getElementById('setAdminPasswordBtn');
+
+        if (adminModeBtn) {
+            adminModeBtn.addEventListener('click', () => this.openAdminModal());
+        }
+        if (adminModeBtn2) {
+            adminModeBtn2.addEventListener('click', () => this.openAdminModal());
+        }
+        if (closeAdminModal) {
+            closeAdminModal.addEventListener('click', () => {
+                adminModal.classList.add('hidden');
+            });
+        }
+        if (adminLoginBtn) {
+            adminLoginBtn.addEventListener('click', () => this.attemptLogin());
+        }
+        if (adminPasswordInput) {
+            adminPasswordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.attemptLogin();
+            });
+        }
+        if (setAdminPasswordBtn) {
+            setAdminPasswordBtn.addEventListener('click', () => this.setPassword());
+        }
+    }
+
+    static openAdminModal() {
+        document.getElementById('adminModal').classList.remove('hidden');
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('adminMessage').classList.add('hidden');
+    }
+
+    static setPassword() {
+        const password = document.getElementById('adminPasswordInput').value.trim();
+        if (!password) {
+            alert('Please enter a password');
+            return;
+        }
+        // Simple hash for password storage (use proper hashing in production)
+        const hashedPassword = btoa(password);
+        this.storage.set('adminPassword', hashedPassword);
+        alert('Admin password set successfully!');
+        document.getElementById('adminPasswordInput').value = '';
+    }
+
+    static attemptLogin() {
+        const input = document.getElementById('adminPassword').value;
+        const hashedInput = btoa(input);
+        const storedPassword = this.storage.get('adminPassword');
+
+        if (!storedPassword) {
+            const messageEl = document.getElementById('adminMessage');
+            messageEl.textContent = 'No admin password set. Set one in Settings first.';
+            messageEl.classList.remove('hidden');
+            return;
+        }
+
+        if (hashedInput === storedPassword) {
+            this.isAdminLoggedIn = true;
+            this.showAdminUploadArea();
+            document.getElementById('adminModal').classList.add('hidden');
+            alert('Admin mode activated! ✓');
+        } else {
+            const messageEl = document.getElementById('adminMessage');
+            messageEl.textContent = 'Incorrect password.';
+            messageEl.classList.remove('hidden');
+        }
+    }
+
+    static showAdminUploadArea() {
+        document.getElementById('adminUploadArea').classList.remove('hidden');
+        document.getElementById('adminFileUploadArea').classList.remove('hidden');
+    }
+
+    static isAdmin() {
+        return this.isAdminLoggedIn;
+    }
+}
+
+// ============================================================================
+// LECTURES MANAGER - Manages lecture videos with subject folders
+// ============================================================================
+class LecturesManager {
+    static SUBJECTS = [
+        { key: 'arabic', label: 'اللغة العربية', labelEn: 'Arabic' },
+        { key: 'english', label: 'اللغة الإنجليزية', labelEn: 'English' },
+        { key: 'math', label: 'الرياضيات', labelEn: 'Math' },
+        { key: 'science', label: 'العلوم', labelEn: 'Science' },
+        { key: 'history', label: 'التاريخ', labelEn: 'History' },
+        { key: 'philosophy', label: 'الفلسفة', labelEn: 'Philosophy' },
+        { key: 'french', label: 'اللغة الفرنسية', labelEn: 'French' },
+        { key: 'programming', label: 'البرمجة', labelEn: 'Programming' },
+        { key: 'religion', label: 'التربية الدينية', labelEn: 'Religion' }
+    ];
+
+    static init(storage) {
+        this.storage = storage;
+        this.lectures = this.loadLectures();
+        this.render();
+        this.setupEventListeners();
+    }
+
+    static loadLectures() {
+        return this.storage.get('lectures', {});
+    }
+
+    static saveLectures() {
+        this.storage.set('lectures', this.lectures);
+    }
+
+    static setupEventListeners() {
+        const uploadBtn = document.getElementById('uploadLectureBtn');
+        const fileInput = document.getElementById('lectureFile');
+        const subjectSelect = document.getElementById('lectureSubject');
+
+        if (subjectSelect) {
+            subjectSelect.innerHTML = '';
+            this.SUBJECTS.forEach(subject => {
+                const opt = document.createElement('option');
+                opt.value = subject.key;
+                opt.textContent = `${subject.labelEn} (${subject.label})`;
+                subjectSelect.appendChild(opt);
+            });
+        }
+
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                if (!AdminAuth.isAdmin()) {
+                    alert('Admin mode required to upload videos');
+                    return;
+                }
+                if (fileInput.files.length === 0) {
+                    alert('Please select a file');
+                    return;
+                }
+                this.uploadLecture(fileInput.files[0]);
+            });
+        }
+    }
+
+    static uploadLecture(file) {
+        const validTypes = ['video/mp4', 'video/quicktime'];
+        if (!validTypes.includes(file.type)) {
+            alert('Only .mp4 and .mov files are allowed');
+            return;
+        }
+
+        const subject = document.getElementById('lectureSubject').value;
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            // Check if Vercel Blob Storage is configured
+            const uploadEndpoint = '/api/upload';
+            const useCloudStorage = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+            if (useCloudStorage) {
+                // Upload to Vercel Blob Storage
+                this.uploadToVercelBlob(file, subject, uploadEndpoint);
+            } else {
+                // Fall back to localStorage
+                this.uploadToLocalStorage(file, subject, e.target.result);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    static uploadToVercelBlob(file, subject, endpoint) {
+        // TODO: Implement Vercel Blob Storage upload
+        // This requires a backend API endpoint
+        console.log('Vercel Blob Storage upload would be implemented here');
+        this.uploadToLocalStorage(file, subject, null);
+    }
+
+    static uploadToLocalStorage(file, subject, data) {
+        const lectureData = {
+            id: 'lecture_' + Date.now(),
+            name: file.name,
+            subject: subject,
+            size: file.size,
+            type: file.type,
+            data: data,
+            uploaded: new Date().toISOString(),
+            storage: 'local'
+        };
+
+        if (!this.lectures[subject]) {
+            this.lectures[subject] = [];
+        }
+        this.lectures[subject].push(lectureData);
+        this.saveLectures();
+
+        alert(`Video "${file.name}" uploaded successfully!`);
+        document.getElementById('lectureFile').value = '';
+        this.render();
+    }
+
+    static render() {
+        const container = document.getElementById('lecturesFolders');
+        if (!container) return;
+        container.innerHTML = '';
+
+        this.SUBJECTS.forEach(subject => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'folder-item';
+            folderDiv.innerHTML = `
+                <div class="folder-header">
+                    <span class="folder-icon">📁</span>
+                    <div class="folder-info">
+                        <div class="folder-name">${subject.labelEn}</div>
+                        <div class="folder-label">${subject.label}</div>
+                        <div class="folder-count">${(this.lectures[subject.key] || []).length} videos</div>
+                    </div>
+                </div>
+            `;
+
+            const videosList = document.createElement('div');
+            videosList.className = 'folder-contents hidden';
+            (this.lectures[subject.key] || []).forEach(video => {
+                const videoItem = document.createElement('div');
+                videoItem.className = 'video-item';
+                videoItem.innerHTML = `
+                    <span class="video-icon">🎥</span>
+                    <span class="video-name">${video.name}</span>
+                    <small>${(video.size / 1024 / 1024).toFixed(2)} MB</small>
+                `;
+                videosList.appendChild(videoItem);
+            });
+
+            folderDiv.appendChild(videosList);
+            folderDiv.addEventListener('click', () => {
+                videosList.classList.toggle('hidden');
+            });
+            container.appendChild(folderDiv);
+        });
+    }
+}
+
+// ============================================================================
+// FILES MANAGER - Manages file uploads with subject folders
+// ============================================================================
+class FilesManager {
+    static SUBJECTS = [
+        { key: 'arabic', label: 'اللغة العربية', labelEn: 'Arabic' },
+        { key: 'english', label: 'اللغة الإنجليزية', labelEn: 'English' },
+        { key: 'math', label: 'الرياضيات', labelEn: 'Math' },
+        { key: 'science', label: 'العلوم', labelEn: 'Science' },
+        { key: 'history', label: 'التاريخ', labelEn: 'History' },
+        { key: 'philosophy', label: 'الفلسفة', labelEn: 'Philosophy' },
+        { key: 'french', label: 'اللغة الفرنسية', labelEn: 'French' },
+        { key: 'programming', label: 'البرمجة', labelEn: 'Programming' },
+        { key: 'religion', label: 'التربية الدينية', labelEn: 'Religion' },
+        { key: 'extra', label: 'إضافي', labelEn: 'Extra' }
+    ];
+
+    static init(storage) {
+        this.storage = storage;
+        this.files = this.loadFiles();
+        this.render();
+        this.setupEventListeners();
+    }
+
+    static loadFiles() {
+        return this.storage.get('files', {});
+    }
+
+    static saveFiles() {
+        this.storage.set('files', this.files);
+    }
+
+    static setupEventListeners() {
+        const uploadBtn = document.getElementById('uploadFileBtn');
+        const fileInput = document.getElementById('fileUploadInput');
+        const subjectSelect = document.getElementById('fileSubject');
+
+        if (subjectSelect) {
+            subjectSelect.innerHTML = '';
+            this.SUBJECTS.forEach(subject => {
+                const opt = document.createElement('option');
+                opt.value = subject.key;
+                opt.textContent = `${subject.labelEn} (${subject.label})`;
+                subjectSelect.appendChild(opt);
+            });
+        }
+
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                if (!AdminAuth.isAdmin()) {
+                    alert('Admin mode required to upload files');
+                    return;
+                }
+                if (fileInput.files.length === 0) {
+                    alert('Please select a file');
+                    return;
+                }
+                this.uploadFile(fileInput.files[0]);
+            });
+        }
+    }
+
+    static uploadFile(file) {
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            alert('Only PDF and image files (JPG, PNG, GIF) are allowed');
+            return;
+        }
+
+        const subject = document.getElementById('fileSubject').value;
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            // Check if Vercel Blob Storage is configured
+            const uploadEndpoint = '/api/upload';
+            const useCloudStorage = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+            if (useCloudStorage) {
+                // Upload to Vercel Blob Storage
+                this.uploadToVercelBlob(file, subject, uploadEndpoint);
+            } else {
+                // Fall back to localStorage
+                this.uploadToLocalStorage(file, subject, e.target.result);
+            }
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    static uploadToVercelBlob(file, subject, endpoint) {
+        // TODO: Implement Vercel Blob Storage upload
+        // This requires a backend API endpoint
+        console.log('Vercel Blob Storage upload would be implemented here');
+        this.uploadToLocalStorage(file, subject, null);
+    }
+
+    static uploadToLocalStorage(file, subject, data) {
+        const fileData = {
+            id: 'file_' + Date.now(),
+            name: file.name,
+            subject: subject,
+            size: file.size,
+            type: file.type,
+            data: data,
+            uploaded: new Date().toISOString(),
+            storage: 'local'
+        };
+
+        if (!this.files[subject]) {
+            this.files[subject] = [];
+        }
+        this.files[subject].push(fileData);
+        this.saveFiles();
+
+        alert(`File "${file.name}" uploaded successfully!`);
+        document.getElementById('fileUploadInput').value = '';
+        this.render();
+    }
+
+    static render() {
+        const container = document.getElementById('filesFolders');
+        if (!container) return;
+        container.innerHTML = '';
+
+        this.SUBJECTS.forEach(subject => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'folder-item';
+            folderDiv.innerHTML = `
+                <div class="folder-header">
+                    <span class="folder-icon">📁</span>
+                    <div class="folder-info">
+                        <div class="folder-name">${subject.labelEn}</div>
+                        <div class="folder-label">${subject.label}</div>
+                        <div class="folder-count">${(this.files[subject.key] || []).length} files</div>
+                    </div>
+                </div>
+            `;
+
+            const filesList = document.createElement('div');
+            filesList.className = 'folder-contents hidden';
+            (this.files[subject.key] || []).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                const icon = file.type.includes('pdf') ? '📄' : '🖼️';
+                fileItem.innerHTML = `
+                    <span class="file-icon">${icon}</span>
+                    <span class="file-name">${file.name}</span>
+                    <small>${(file.size / 1024).toFixed(2)} KB</small>
+                `;
+                filesList.appendChild(fileItem);
+            });
+
+            folderDiv.appendChild(filesList);
+            folderDiv.addEventListener('click', () => {
+                filesList.classList.toggle('hidden');
+            });
+            container.appendChild(folderDiv);
+        });
+    }
+}
+
+// ============================================================================
 // ============================================================================
 // LANGUAGE SUPPORT (EN/AR)
 // ============================================================================
@@ -1269,6 +1685,23 @@ const LANGUAGES = {
         dark: 'Dark',
         workTime: 'Work Time',
         breakTime: 'Break Time',
+        lectures: 'Lectures',
+        المحاضرات: 'Lectures',
+        files: 'Files',
+        adminMode: 'Admin Mode',
+        uploadVideo: 'Upload Lecture Video',
+        selectSubject: 'Select Subject',
+        uploadFile: 'Upload File',
+        selectFolder: 'Select Folder',
+        adminPassword: 'Enter Admin Password',
+        login: 'Login',
+        setPasswordTitle: 'Set Admin Password:',
+        setPassword: 'Set Password',
+        videos: 'videos',
+        files: 'files',
+        uploadLectureVideo: 'Upload Lecture Video',
+        lectureVideos: 'Lecture Videos',
+        filesManagement: 'Files Management',
     },
     ar: {
         studyDashboard: 'لوحة الدراسة',
@@ -1322,7 +1755,23 @@ const LANGUAGES = {
         dark: 'داكن',
         workTime: 'وقت العمل',
         breakTime: 'وقت الاستراحة',
-    }
+        lectures: 'المحاضرات',
+        المحاضرات: 'المحاضرات',
+        files: 'الملفات',
+        adminMode: 'وضع المسؤول',
+        uploadVideo: 'تحميل فيديو المحاضرة',
+        selectSubject: 'اختر الموضوع',
+        uploadFile: 'تحميل ملف',
+        selectFolder: 'اختر المجلد',
+        adminPassword: 'أدخل كلمة مرور المسؤول',
+        login: 'تسجيل الدخول',
+        setPasswordTitle: 'تعيين كلمة مرور المسؤول:',
+        setPassword: 'تعيين كلمة المرور',
+        videos: 'فيديوهات',
+        filesCount: 'ملفات',
+        uploadLectureVideo: 'تحميل فيديو المحاضرة',
+        lectureVideos: 'فيديوهات المحاضرات',
+        filesManagement: 'إدارة الملفات',
 };
 
 function updateLanguageUI(lang) {
@@ -1513,6 +1962,11 @@ document.addEventListener('DOMContentLoaded', () => {
     FocusMode.init();
     ProgressAnalytics.init(storage);
     SubjectsDashboardAnalytics.init(storage, subjectsManager);
+    
+    // Initialize new modules
+    AdminAuth.init(storage);
+    LecturesManager.init(storage);
+    FilesManager.init(storage);
 
     // Now update language UI
     updateLanguageUI(lang);

@@ -7,6 +7,7 @@
     <meta name="description" content="A progressive web app for focused studying with timers, quizzes, and notes">
     <title>Study Dashboard - Focus & Learn</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="lectures-files.css">
     <link rel="icon" type="image/png" href="Pic.png">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -62,7 +63,8 @@
                 <button class="tab-btn" data-tab="quiz" title="Quiz Engine">❓ Quiz</button>
                 <button class="tab-btn" data-tab="notes" title="Notes">📝 Notes</button>
                 <button class="tab-btn" data-tab="progress" title="Progress">📊 Progress</button>
-                <button class="tab-btn" data-tab="subjects-dashboard" title="Subjects Dashboard">📈 Subjects Dashboard</button>
+                <button class="tab-btn" data-tab="lectures" title="Lectures">🎥 المحاضرات</button>
+                <button class="tab-btn" data-tab="files" title="Files">📁 Files</button>
             </nav>
 
             <!-- Tab Content -->
@@ -276,8 +278,68 @@
                     </div>
                 </section>
 
-                <!-- Subjects Dashboard Tab -->
-                <section id="subjects-dashboard" class="tab-pane">
+                <!-- Lectures Tab -->
+                <section id="lectures" class="tab-pane">
+                    <div class="lectures-container">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <h2>المحاضرات (Lectures)</h2>
+                            <button id="adminModeBtn" class="btn btn-secondary">🔐 Admin Mode</button>
+                        </div>
+                        <div id="lecturesContent" class="lectures-content">
+                            <div id="lecturesFolders" class="folders-grid"></div>
+                            <div id="adminUploadArea" class="admin-upload-area hidden">
+                                <h3>Upload Lecture Video</h3>
+                                <div class="upload-group">
+                                    <label for="lectureSubject">Select Subject:</label>
+                                    <select id="lectureSubject" class="btn"></select>
+                                </div>
+                                <div class="upload-group">
+                                    <input type="file" id="lectureFile" accept=".mp4,.mov" class="file-input">
+                                    <button id="uploadLectureBtn" class="btn btn-primary">Upload Video</button>
+                                </div>
+                                <div id="uploadProgress" class="upload-progress hidden">
+                                    <div class="progress-bar">
+                                        <div id="progressFill" class="progress-fill"></div>
+                                    </div>
+                                    <span id="progressText">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Files Tab -->
+                <section id="files" class="tab-pane">
+                    <div class="files-container">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <h2>Files</h2>
+                            <button id="adminModeBtn2" class="btn btn-secondary">🔐 Admin Mode</button>
+                        </div>
+                        <div id="filesContent" class="files-content">
+                            <div id="filesFolders" class="folders-grid"></div>
+                            <div id="adminFileUploadArea" class="admin-upload-area hidden">
+                                <h3>Upload File</h3>
+                                <div class="upload-group">
+                                    <label for="fileSubject">Select Folder:</label>
+                                    <select id="fileSubject" class="btn"></select>
+                                </div>
+                                <div class="upload-group">
+                                    <input type="file" id="fileUploadInput" accept=".pdf,.jpg,.jpeg,.png,.gif" class="file-input">
+                                    <button id="uploadFileBtn" class="btn btn-primary">Upload File</button>
+                                </div>
+                                <div id="fileUploadProgress" class="upload-progress hidden">
+                                    <div class="progress-bar">
+                                        <div id="fileProgressFill" class="progress-fill"></div>
+                                    </div>
+                                    <span id="fileProgressText">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Subjects Dashboard Tab (kept for analytics) -->
+                <section id="subjects-dashboard" class="tab-pane hidden">
                     <div class="subjects-dashboard-container">
                         <div style="display:flex;align-items:center;justify-content:space-between;">
                             <h2>Subjects Dashboard</h2>
@@ -290,6 +352,24 @@
                 </section>
             </div>
         </main>
+
+        <!-- Admin Authentication Modal -->
+        <div id="adminModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Admin Authentication</h2>
+                    <button class="modal-close" id="closeAdminModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-item">
+                        <label for="adminPassword">Enter Admin Password:</label>
+                        <input type="password" id="adminPassword" class="input-field" placeholder="Enter password">
+                    </div>
+                    <button id="adminLoginBtn" class="btn btn-primary">Login</button>
+                    <div id="adminMessage" class="admin-message hidden"></div>
+                </div>
+            </div>
+        </div>
 
         <!-- Settings Modal -->
         <div id="settingsModal" class="modal hidden">
@@ -313,6 +393,11 @@
                                 <option value="dark">Dark</option>
                             </select>
                         </label>
+                    </div>
+                    <div class="setting-item">
+                        <label for="adminPasswordInput">Set Admin Password:</label>
+                        <input type="password" id="adminPasswordInput" class="input-field" placeholder="Set a password">
+                        <button id="setAdminPasswordBtn" class="btn btn-secondary" style="margin-top: 0.5em;">Set Password</button>
                     </div>
                 </div>
             </div>
