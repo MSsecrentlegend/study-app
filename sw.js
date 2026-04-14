@@ -1,6 +1,7 @@
 // Service Worker for offline functionality and caching strategy
+// Cache version auto-updates daily to bust old caches
 
-const CACHE_VERSION = 'luma-v1';
+const CACHE_VERSION = 'luma-v' + new Date().toISOString().split('T')[0]; // Changes daily
 const CACHE_URLS = [
   '/',
   '/index.html',

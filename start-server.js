@@ -150,6 +150,134 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // Handle file uploads (admin uploads)
+    if (pathname === '/api/upload' && req.method === 'POST') {
+        let body = Buffer.alloc(0);
+        req.on('data', chunk => {
+            body = Buffer.concat([body, chunk]);
+        });
+        req.on('end', () => {
+            try {
+                // Parse multipart form data
+                const boundary = req.headers['content-type'].split('boundary=')[1];
+                if (!boundary) {
+                    throw new Error('No boundary found');
+                }
+
+                const boundaryBuffer = Buffer.from('--' + boundary);
+                const endBoundaryBuffer = Buffer.from('--' + boundary + '--');
+                
+                // Split by boundary
+                let currentPos = 0;
+                let parts = [];
+                let searchPos = 0;
+                
+                while (searchPos < body.length) {
+                    const boundaryPos = body.indexOf(boundaryBuffer, searchPos);
+                    if (boundaryPos === -1) break;
+                    
+                    if (boundaryPos > searchPos) {
+                        parts.push(body.slice(searchPos, boundaryPos));
+                    }
+                    searchPos = boundaryPos + boundaryBuffer.length;
+                }
+                
+                if (searchPos < body.length) {
+                    parts.push(body.slice(searchPos));
+                }
+
+                // Extract file and metadata
+                let fileName = '';
+                let fileType = '';
+                let fileBuffer = null;
+                let fileSubject = '';
+
+                for (let part of parts) {
+                    const partStr = part.toString('utf8', 0, Math.min(500, part.length));
+                    
+                    // Parse Content-Disposition header
+                    const nameMatch = partStr.match(/name="([^"]+)"/);
+                    if (!nameMatch) continue;
+                    
+                    const fieldName = nameMatch[1];
+                    
+                    if (fieldName === 'file') {
+                        const fileNameMatch = partStr.match(/filename="([^"]+)"/);
+                        if (fileNameMatch) fileName = fileNameMatch[1];
+                        
+                        const contentTypeMatch = partStr.match(/Content-Type: ([^\r\n]+)/);
+                        if (contentTypeMatch) fileType = contentTypeMatch[1];
+                        
+                        // Find the file content (after headers)
+                        const headerEndPos = part.indexOf('\r\n\r\n');
+                        if (headerEndPos !== -1) {
+                            fileBuffer = part.slice(headerEndPos + 4);
+                            // Remove trailing CRLF
+                            if (fileBuffer.length > 2) {
+                                fileBuffer = fileBuffer.slice(0, -2);
+                            }
+                        }
+                    } else if (fieldName === 'subject') {
+                        // Extract subject value
+                        const contentStart = partStr.indexOf('\r\n\r\n');
+                        if (contentStart !== -1) {
+                            const content = part.slice(contentStart + 4);
+                            const contentEnd = content.indexOf('\r\n');
+                            fileSubject = content.slice(0, contentEnd > -1 ? contentEnd : content.length).toString('utf8').trim();
+                        }
+                    } else if (fieldName === 'type') {
+                        // Extract upload type (lecture, file, quiz)
+                        const contentStart = partStr.indexOf('\r\n\r\n');
+                        if (contentStart !== -1) {
+                            const content = part.slice(contentStart + 4);
+                            const contentEnd = content.indexOf('\r\n');
+                            var uploadType = content.slice(0, contentEnd > -1 ? contentEnd : content.length).toString('utf8').trim();
+                        }
+                    }
+                }
+
+                if (!fileName || !fileBuffer) {
+                    throw new Error('No file provided');
+                }
+
+                // Determine upload directory based on file type
+                let uploadDir;
+                if (uploadType === 'lecture') {
+                    uploadDir = path.join(__dirname, 'uploads/lectures');
+                } else if (uploadType === 'quiz') {
+                    uploadDir = path.join(__dirname, 'uploads/quizzes');
+                } else {
+                    uploadDir = path.join(__dirname, 'uploads/files');
+                }
+
+                // Ensure directory exists
+                if (!fs.existsSync(uploadDir)) {
+                    fs.mkdirSync(uploadDir, { recursive: true });
+                }
+
+                // Save file with sanitized name
+                const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const filePath = path.join(uploadDir, sanitizedFileName);
+
+                fs.writeFileSync(filePath, fileBuffer);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: `File uploaded successfully`,
+                    file: sanitizedFileName,
+                    path: `/uploads/${uploadType === 'lecture' ? 'lectures' : uploadType === 'quiz' ? 'quizzes' : 'files'}/${sanitizedFileName}`,
+                    type: uploadType
+                }));
+            } catch (err) {
+                console.error('Upload error:', err);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+        });
+        return;
+    }
+
     // Download results CSV (admin only - no protection for now)
     if (pathname === '/api/results-download' && req.method === 'GET') {
         const resultsFile = path.join(__dirname, 'results.csv');

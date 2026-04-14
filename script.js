@@ -1410,53 +1410,61 @@ class LecturesManager {
         }
 
         const subject = document.getElementById('lectureSubject').value;
-        const reader = new FileReader();
+        const uploadBtn = document.getElementById('uploadLectureBtn');
+        
+        // Disable button and show loading state
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
 
-        reader.onload = (e) => {
-            // Check if Vercel Blob Storage is configured
-            const uploadEndpoint = '/api/upload';
-            const useCloudStorage = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('subject', subject);
+        formData.append('type', 'lecture');
 
-            if (useCloudStorage) {
-                // Upload to Vercel Blob Storage
-                this.uploadToVercelBlob(file, subject, uploadEndpoint);
+        fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Video "${file.name}" uploaded successfully! All users will see it.`);
+                document.getElementById('lectureFile').value = '';
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Lecture Video';
+                // Refresh the lectures list from server
+                this.loadLecturesFromServer();
             } else {
-                // Fall back to localStorage
-                this.uploadToLocalStorage(file, subject, e.target.result);
+                throw new Error(data.error || 'Upload failed');
             }
-        };
-
-        reader.readAsArrayBuffer(file);
+        })
+        .catch(error => {
+            alert(`Upload failed: ${error.message}`);
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload Lecture Video';
+        });
     }
 
-    static uploadToVercelBlob(file, subject, endpoint) {
-        // TODO: Implement Vercel Blob Storage upload
-        // This requires a backend API endpoint
-        console.log('Vercel Blob Storage upload would be implemented here');
-        this.uploadToLocalStorage(file, subject, null);
-    }
-
-    static uploadToLocalStorage(file, subject, data) {
-        const lectureData = {
-            id: 'lecture_' + Date.now(),
-            name: file.name,
-            subject: subject,
-            size: file.size,
-            type: file.type,
-            data: data,
-            uploaded: new Date().toISOString(),
-            storage: 'local'
-        };
-
-        if (!this.lectures[subject]) {
-            this.lectures[subject] = [];
-        }
-        this.lectures[subject].push(lectureData);
-        this.saveLectures();
-
-        alert(`Video "${file.name}" uploaded successfully!`);
-        document.getElementById('lectureFile').value = '';
-        this.render();
+    static loadLecturesFromServer() {
+        fetch('/api/lectures')
+            .then(response => response.json())
+            .then(lectures => {
+                // Convert server response to expected format
+                this.lectures = {};
+                lectures.forEach(lecture => {
+                    const subject = lecture.name.split('_')[0] || 'Other';
+                    if (!this.lectures[subject]) {
+                        this.lectures[subject] = [];
+                    }
+                    this.lectures[subject].push({
+                        name: lecture.name,
+                        url: lecture.url,
+                        size: 0
+                    });
+                });
+                this.render();
+            })
+            .catch(error => console.error('Error loading lectures:', error));
     }
 
     static render() {
@@ -1571,53 +1579,62 @@ class FilesManager {
         }
 
         const subject = document.getElementById('fileSubject').value;
-        const reader = new FileReader();
+        const uploadBtn = document.getElementById('uploadFileBtn');
+        
+        // Disable button and show loading state
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
 
-        reader.onload = (e) => {
-            // Check if Vercel Blob Storage is configured
-            const uploadEndpoint = '/api/upload';
-            const useCloudStorage = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('subject', subject);
+        formData.append('type', 'file');
 
-            if (useCloudStorage) {
-                // Upload to Vercel Blob Storage
-                this.uploadToVercelBlob(file, subject, uploadEndpoint);
+        fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`File "${file.name}" uploaded successfully! All users will see it.`);
+                document.getElementById('fileUploadInput').value = '';
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload File';
+                // Refresh the files list from server
+                this.loadFilesFromServer();
             } else {
-                // Fall back to localStorage
-                this.uploadToLocalStorage(file, subject, e.target.result);
+                throw new Error(data.error || 'Upload failed');
             }
-        };
-
-        reader.readAsDataURL(file);
+        })
+        .catch(error => {
+            alert(`Upload failed: ${error.message}`);
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload File';
+        });
     }
 
-    static uploadToVercelBlob(file, subject, endpoint) {
-        // TODO: Implement Vercel Blob Storage upload
-        // This requires a backend API endpoint
-        console.log('Vercel Blob Storage upload would be implemented here');
-        this.uploadToLocalStorage(file, subject, null);
-    }
-
-    static uploadToLocalStorage(file, subject, data) {
-        const fileData = {
-            id: 'file_' + Date.now(),
-            name: file.name,
-            subject: subject,
-            size: file.size,
-            type: file.type,
-            data: data,
-            uploaded: new Date().toISOString(),
-            storage: 'local'
-        };
-
-        if (!this.files[subject]) {
-            this.files[subject] = [];
-        }
-        this.files[subject].push(fileData);
-        this.saveFiles();
-
-        alert(`File "${file.name}" uploaded successfully!`);
-        document.getElementById('fileUploadInput').value = '';
-        this.render();
+    static loadFilesFromServer() {
+        fetch('/api/files')
+            .then(response => response.json())
+            .then(files => {
+                // Convert server response to expected format
+                this.files = {};
+                files.forEach(file => {
+                    const subject = file.name.split('_')[0] || 'Other';
+                    if (!this.files[subject]) {
+                        this.files[subject] = [];
+                    }
+                    this.files[subject].push({
+                        name: file.name,
+                        url: file.url,
+                        size: 0,
+                        type: file.name.split('.').pop()
+                    });
+                });
+                this.render();
+            })
+            .catch(error => console.error('Error loading files:', error));
     }
 
     static render() {
