@@ -2043,3 +2043,30 @@ document.addEventListener('DOMContentLoaded', () => {
         StudyTracker.updateTotalTime();
     }, 30000); // Update every 30 seconds
 });
+// ============================================================================
+// الساهر: كود إرسال النتائج للـ Blob (آمن تماماً ولا يكسر الملف)
+// ============================================================================
+setInterval(() => {
+    // نبحث عن زر "إنهاء" أو "إغلاق" الذي يظهر في نهاية الكويز
+    const closeBtn = document.querySelector('#quiz-container button');
+    
+    // إذا ظهرت النتيجة ولم يتم حفظها بعد
+    if (closeBtn && closeBtn.innerText.includes('إغلاق') && !closeBtn.getAttribute('data-sent')) {
+        const studentName = document.getElementById('studentNameInput')?.value || "طالب_مجهول";
+        const scoreElement = document.querySelector('#quiz-container span.text-purple-600');
+        const finalScore = scoreElement ? scoreElement.innerText.replace('%', '') : "0";
+
+        fetch('/api/upload?action=saveResult', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: studentName,
+                quizTitle: "اختبار لومـا",
+                score: finalScore
+            })
+        }).then(() => {
+            console.log("✅ Result saved!");
+            closeBtn.setAttribute('data-sent', 'true'); // منع التكرار
+        }).catch(err => console.error("❌ Save failed", err));
+    }
+}, 2000);

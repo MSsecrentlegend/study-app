@@ -1,176 +1,119 @@
-/**
- * Vercel Blob Storage Upload Handler
- * 
- * This API endpoint handles file uploads to Vercel Blob Storage.
- * Configure in your Vercel project dashboard.
- * 
- * Path: api/upload.js (in root or functions directory)
- */
-
 import { put, list, del } from '@vercel/blob';
 
-// Verify admin authentication
-function authenticateAdmin(request) {
-  const adminToken = request.headers['x-admin-token'] || request.body?.adminToken;
-  const expectedToken = process.env.ADMIN_TOKEN;
-  
-  if (!expectedToken) {
-    throw new Error('ADMIN_TOKEN not configured');
-  }
-  
-  if (adminToken !== expectedToken) {
-    throw new Error('Invalid admin token');
-  }
-  
-  return true;
-}
-
-// Validate file type
-function validateFile(filename, uploadType) {
-  if (uploadType === 'lecture') {
-    if (!filename.match(/\.(mp4|mov)$/i)) {
-      throw new Error('Invalid lecture file type. Only .mp4 and .mov allowed.');
-    }
-  } else if (uploadType === 'file') {
-    if (!filename.match(/\.(pdf|jpg|jpeg|png|gif)$/i)) {
-      throw new Error('Invalid file type. Only PDF and images (JPG, PNG, GIF) allowed.');
-    }
-  }
-}
-
-// Get content type
-function getContentType(filename) {
-  const ext = filename.split('.').pop().toLowerCase();
-  const types = {
-    'mp4': 'video/mp4',
-    'mov': 'video/quicktime',
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif'
-  };
-  return types[ext] || 'application/octet-stream';
-}
+/**
+ * Vercel Blob Storage Handler for Luma Study
+ * * الميزات:
+ * 1. رفع المحاضرات (فيديو فقط)
+ * 2. رفع الملفات (PDF وصور)
+ * 3. حفظ نتائج الكويزات (JSON)
+ */
 
 export default async function handler(request, response) {
-  // Enable CORS
-  response.setHeader('Access-Control-Allow-Credentials', 'true');
-  response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  response.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-admin-token');
-  
-  if (request.method === 'OPTIONS') {
-    response.status(200).end();
-    return;
-  }
-
   try {
-    // Handle different request methods
+    // 1. التعامل مع حفظ نتائج الطلاب (لا يحتاج رمز أدمن)
+    if (request.method === 'POST' && request.query.action === 'saveResult') {
+      return await handleSaveQuizResult(request, response);
+    }
+
+    // 2. التحقق من صلاحيات الأدمن للعمليات الأخرى (الرفع والمسح)
+    if (request.method === 'POST' || request.method === 'DELETE' || request.query.action === 'list') {
+      authenticateAdmin(request);
+    }
+
     if (request.method === 'POST') {
       return await handleUpload(request, response);
-    } else if (request.method === 'GET') {
+    } else if (request.method === 'GET' && request.query.action === 'list') {
       return await handleList(request, response);
     } else if (request.method === 'DELETE') {
       return await handleDelete(request, response);
-    } else {
-      return response.status(405).json({ error: 'Method not allowed' });
     }
+
+    return response.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Upload error:', error);
-    return response.status(400).json({ error: error.message });
+    console.error('Server Error:', error);
+    return response.status(error.message === 'Invalid admin token' ? 401 : 400).json({ error: error.message });
   }
 }
 
+// دالة حفظ نتائج الكويزات في الـ Blob
+async function handleSaveQuizResult(request, response) {
+  const { username, quizTitle, score } = request.body;
+  
+  if (!username || !quizTitle) {
+    return response.status(400).json({ error: 'Missing data' });
+  }
+
+  // اسم الملف سيكون داخل مجلد results مع طابع زمني لعدم التكرار
+  const fileName = `results/${username.replace(/\s+/g, '_')}-${Date.now()}.json`;
+  
+  const blob = await put(fileName, JSON.stringify({
+    username,
+    quizTitle,
+    score: score + '%',
+    date: new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' })
+  }), {
+    access: 'public',
+    addRandomSuffix: false,
+    contentType: 'application/json'
+  });
+
+  return response.status(200).json({ success: true, url: blob.url });
+}
+
+// دالة رفع الملفات (المحاضرات والمصادر)
 async function handleUpload(request, response) {
-  try {
-    authenticateAdmin(request);
+  const { filename, uploadType, subject } = request.query;
+  const file = request.body; // Buffer من الملف
 
-    const { file, filename, uploadType, subject } = request.body;
+  if (!file) throw new Error('No file provided');
 
-    if (!file || !filename || !uploadType) {
-      return response.status(400).json({ error: 'Missing required fields' });
-    }
+  // التأكد من نوع الملف
+  validateFile(filename, uploadType);
 
-    validateFile(filename, uploadType);
+  const path = `${uploadType}s/${subject}/${filename}`;
+  const blob = await put(path, file, {
+    access: 'public',
+    addRandomSuffix: true
+  });
 
-    // Convert base64 to buffer
-    const buffer = Buffer.from(file, 'base64');
-
-    // Create path
-    const date = new Date().toISOString().split('T')[0];
-    const safeName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const path = `${uploadType}s/${subject || 'general'}/${date}/${safeName}`;
-
-    // Upload to Vercel Blob
-    const blob = await put(path, buffer, {
-      access: 'public',
-      contentType: getContentType(filename),
-      addRandomSuffix: false
-    });
-
-    return response.status(200).json({
-      success: true,
-      url: blob.url,
-      path: blob.pathname,
-      filename: filename,
-      uploadType: uploadType,
-      subject: subject,
-      size: buffer.length,
-      uploadedAt: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    return response.status(400).json({ error: error.message });
-  }
+  return response.status(200).json(blob);
 }
 
+// دالة عرض الملفات المرفوعة
 async function handleList(request, response) {
-  try {
-    authenticateAdmin(request);
-
-    const { uploadType } = request.query;
-
-    if (!uploadType) {
-      return response.status(400).json({ error: 'uploadType required' });
-    }
-
-    const prefix = `${uploadType}s/`;
-    const blobs = await list({ prefix });
-
-    return response.status(200).json({
-      count: blobs.blobs.length,
-      items: blobs.blobs.map(blob => ({
-        name: blob.pathname.split('/').pop(),
-        path: blob.pathname,
-        size: blob.size,
-        uploadedAt: blob.uploadedAt
-      }))
-    });
-  } catch (error) {
-    console.error('List error:', error);
-    return response.status(400).json({ error: error.message });
-  }
+  const { uploadType } = request.query;
+  const prefix = uploadType ? `${uploadType}s/` : '';
+  const blobs = await list({ prefix });
+  return response.status(200).json(blobs);
 }
 
+// دالة مسح الملفات
 async function handleDelete(request, response) {
-  try {
-    authenticateAdmin(request);
+  const { url } = request.query;
+  await del(url);
+  return response.status(200).json({ success: true });
+}
 
-    const { path } = request.query;
+// التحقق من رمز الأدمن (يجب ضبطه في إعدادات Vercel كـ Environment Variable)
+function authenticateAdmin(request) {
+  const adminToken = request.headers['x-admin-token'];
+  const expectedToken = process.env.ADMIN_TOKEN;
+  
+  if (!expectedToken || adminToken !== expectedToken) {
+    throw new Error('Invalid admin token');
+  }
+  return true;
+}
 
-    if (!path) {
-      return response.status(400).json({ error: 'path required' });
+// التحقق من الصيغ المسموحة
+function validateFile(filename, uploadType) {
+  if (uploadType === 'lecture') {
+    if (!filename.match(/\.(mp4|mov)$/i)) {
+      throw new Error('فقط ملفات الفيديو (mp4, mov) مسموحة للمحاضرات');
     }
-
-    await del(path);
-
-    return response.status(200).json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete error:', error);
-    return response.status(400).json({ error: error.message });
+  } else {
+    if (!filename.match(/\.(pdf|jpg|jpeg|png)$/i)) {
+      throw new Error('فقط ملفات PDF والصور مسموحة هنا');
+    }
   }
 }
