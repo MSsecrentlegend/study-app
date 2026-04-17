@@ -1756,3 +1756,27 @@ body.focus-mode .timer-stats {
         padding: 1rem;
     }
 }
+.signature-fixed {
+    position: fixed; /* يجعله ثابتاً في الشاشة */
+    bottom: 20px;    /* المسافة من الأسفل */
+    left: 50%;       /* بداية التمركز من المنتصف */
+    transform: translateX(-50%); /* يضبطه في السنتر بالضبط */
+    
+    background: rgba(255, 255, 255, 0.9); /* خلفية بيضاء شفافة */
+    backdrop-filter: blur(8px);           /* تأثير الزجاج الضبابي */
+    padding: 8px 20px;
+    border-radius: 50px;                  /* شكل كبسولة */
+    border: 1px solid rgba(168, 85, 247, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    
+    color: #4b5563;
+    font-size: 14px;
+    font-family: sans-serif;
+    z-index: 9999; /* يجعله فوق كل عناصر الموقع */
+    white-space: nowrap; /* يمنع نزول النص لسطر جديد */
+}
+
+.signature-fixed .name {
+    color: #a855f7;
+    font-weight: bold;
+}
