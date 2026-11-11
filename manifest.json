@@ -1,150 +1,32 @@
 {
   "name": "Luma Study",
   "short_name": "Luma",
+  "description": "A calm, connected learning space for videos, exams, study files, and community.",
   "start_url": "/",
-  "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "background_color": "#f3e8ff",
-  "theme_color": "#a855f7",
-  "orientation": "portrait",
   "scope": "/",
   "id": "/",
-  "description": "A minimalist study companion for secondary school subjects, featuring timers and organized notes.",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#7883e8",
   "lang": "en",
   "dir": "auto",
-  "categories": [
-    "books",
-    "education",
-    "productivity",
-    "utilities"
-  ],
-  "prefer_related_applications": false,
-  "related_applications": [],
-  "iarc_rating_id": "",
+  "categories": ["books", "education"],
   "icons": [
     {
       "src": "192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/png"
     },
     {
       "src": "512.png",
-      "sizes": "512x512", 
-      "type": "image/png",
-      "purpose": "any"
+      "sizes": "512x512",
+      "type": "image/png"
     },
     {
       "src": "512.png",
-      "sizes": "512x512", 
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "screenshot1.png",
-      "sizes": "1234x875",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Study Dashboard"
-    },
-    {
-      "src": "Pic.png",
-      "sizes": "1408x768",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Study Dashboard"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Start Timer",
-      "short_name": "Timer",
-      "description": "Quickly start a study timer",
-      "url": "/timer",
-      "icons": [
-        {
-          "src": "192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "View Notes",
-      "short_name": "Notes",
-      "description": "Access your study notes",
-      "url": "/notes",
-      "icons": [
-        {
-          "src": "192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
-  ],
-  "file_handlers": [
-    {
-      "action": "/",
-      "accept": {
-        "application/json": [".json"],
-        "video/mp4": [".mp4"],
-        "application/pdf": [".pdf"]
-      },
-      "icons": [
-        {
-          "src": "192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
-  ],
-  "launch_handler": {
-    "client_mode": ["navigate-new", "auto"]
-  },
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "file",
-          "accept": ["application/json", "video/mp4", "application/pdf"]
-        }
-      ]
-    }
-  },
-  "widgets": [
-    {
-      "name": "Study Timer Widget",
-      "short_name": "Timer",
-      "description": "Quick access to your study timer",
-      "tag": "timer-widget",
-      "template": "black",
-      "data_uri": "/widget/timer",
-      "screenshots": [
-        {
-          "src": "192.png",
-          "sizes": "192x192",
-          "type": "image/png",
-          "form_factor": "all"
-        }
-      ]
-    }
-  ],
-  "edge_side_panel": {
-    "preferred_width": 480
-  },
-  "note_taking": {
-    "new_note_url": "/new-note"
-  },
-  "handle_links": true,
-  "prefer_sync": true
+  ]
 }

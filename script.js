@@ -1,6 +1,8 @@
 // ============================================================================
 // SUBJECTS DASHBOARD ANALYTICS - Per-subject analytics for dashboard tab
 // ============================================================================
+const DEFAULT_SUBJECTS = ['Arabic', 'English', 'History'];
+
 class SubjectsDashboardAnalytics {
     static init(storage, subjectsManager) {
         this.storage = storage;
@@ -8,7 +10,6 @@ class SubjectsDashboardAnalytics {
         this.setupEventListeners();
         this.renderAnalytics();
     }
-
     static setupEventListeners() {
         const filter = document.getElementById('subjectsDashboardFilter');
         if (filter) {
@@ -26,11 +27,15 @@ class SubjectsDashboardAnalytics {
     static populateSubjectDropdown() {
         const filter = document.getElementById('subjectsDashboardFilter');
         if (!filter) return;
-        filter.innerHTML = '<option value="all">All Subjects</option>';
+        filter.replaceChildren();
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = PortalUI.text('allSubjects');
+        filter.appendChild(allOption);
         this.subjectsManager.subjects.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s;
-            opt.textContent = s;
+            opt.textContent = PortalUI.subjectName(s);
             filter.appendChild(opt);
         });
     }
@@ -59,7 +64,7 @@ class SubjectsDashboardAnalytics {
                 const session = studySessions[date];
                 if (typeof session === 'object' && session[subject]) {
                     totalMinutes += session[subject];
-                } else if (subject === 'General' && typeof session === 'number') {
+                } else if (subject === DEFAULT_SUBJECTS[0] && typeof session === 'number') {
                     totalMinutes += session;
                 }
             });
@@ -98,7 +103,15 @@ class SubjectsManager {
     }
 
     loadSubjects() {
-        return this.storage.get('subjects', ['General']);
+        const saved = this.storage.get('subjects', []);
+        const custom = Array.isArray(saved)
+            ? saved.filter(subject => typeof subject === 'string' && subject && subject.toLowerCase() !== 'general' && !DEFAULT_SUBJECTS.includes(subject))
+            : [];
+        const subjects = [...DEFAULT_SUBJECTS, ...custom];
+        if (JSON.stringify(saved) !== JSON.stringify(subjects)) {
+            this.storage.set('subjects', subjects);
+        }
+        return subjects;
     }
 
     saveSubjects() {
@@ -106,14 +119,14 @@ class SubjectsManager {
     }
 
     addSubject(name) {
-        if (!name || this.subjects.includes(name)) return;
+        if (!name || name.toLowerCase() === 'general' || this.subjects.includes(name)) return;
         this.subjects.push(name);
         this.saveSubjects();
         this.renderSubjectsList();
     }
 
     deleteSubject(name) {
-        if (name === 'General') return;
+        if (DEFAULT_SUBJECTS.includes(name)) return;
         this.subjects = this.subjects.filter(s => s !== name);
         this.saveSubjects();
         this.renderSubjectsList();
@@ -157,8 +170,8 @@ class SubjectsManager {
         this.subjects.forEach(subject => {
             const div = document.createElement('div');
             div.className = 'subject-item';
-            div.textContent = subject;
-            if (subject !== 'General') {
+            div.textContent = PortalUI.subjectName(subject);
+            if (!DEFAULT_SUBJECTS.includes(subject)) {
                 const delBtn = document.createElement('button');
                 delBtn.textContent = '🗑️';
                 delBtn.className = 'btn btn-danger';
@@ -180,11 +193,27 @@ class SubjectsManager {
 class StorageManager {
     constructor(namespace = 'studyDashboard') {
         this.namespace = namespace;
+        this.userId = null;
+    }
+
+    setUserScope(userId) {
+        this.userId = userId || null;
+    }
+
+    getStoragePrefix() {
+        return this.userId
+            ? `${this.namespace}_user_${encodeURIComponent(this.userId)}_`
+            : `${this.namespace}_`;
+    }
+
+    getStorageKey(key) {
+        return `${this.getStoragePrefix()}${key}`;
     }
 
     set(key, data) {
         try {
-            localStorage.setItem(`${this.namespace}_${key}`, JSON.stringify(data));
+            localStorage.setItem(this.getStorageKey(key), JSON.stringify(data));
+            window.PortalBackend?.scheduleProgressSync();
             return true;
         } catch (e) {
             console.error('Storage error:', e);
@@ -194,7 +223,7 @@ class StorageManager {
 
     get(key, defaultValue = null) {
         try {
-            const item = localStorage.getItem(`${this.namespace}_${key}`);
+            const item = localStorage.getItem(this.getStorageKey(key));
             return item ? JSON.parse(item) : defaultValue;
         } catch (e) {
             console.error('Storage error:', e);
@@ -203,28 +232,35 @@ class StorageManager {
     }
 
     remove(key) {
-        localStorage.removeItem(`${this.namespace}_${key}`);
+        localStorage.removeItem(this.getStorageKey(key));
     }
 
     clear() {
         const keys = Object.keys(localStorage);
-        keys.forEach(key => {
-            if (key.startsWith(this.namespace)) {
-                localStorage.removeItem(key);
-            }
-        });
+        const prefix = this.getStoragePrefix();
+        keys.filter(key => key.startsWith(prefix)
+            && (this.userId || !key.startsWith(`${this.namespace}_user_`)))
+            .forEach(key => localStorage.removeItem(key));
     }
 
     getAllKeys() {
         const keys = [];
-        const prefix = `${this.namespace}_`;
+        const prefix = this.getStoragePrefix();
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.startsWith(prefix)) {
+            if (key?.startsWith(prefix)
+                && (this.userId || !key.startsWith(`${this.namespace}_user_`))) {
                 keys.push(key.replace(prefix, ''));
             }
         }
         return keys;
+    }
+
+    replaceAll(data) {
+        this.getAllKeys()
+            .filter(key => !Object.prototype.hasOwnProperty.call(data, key))
+            .forEach(key => this.remove(key));
+        Object.entries(data).forEach(([key, value]) => this.set(key, value));
     }
 }
 
@@ -489,13 +525,13 @@ class QuizEngine {
     constructor(storage) {
         this.storage = storage;
         this.currentQuiz = null;
+        this.lastResult = null;
         this.studentName = '';
         this.userAnswers = [];
         this.currentQuestion = 0;
-        this.reviewQueue = [];
+        this.quizSubmitted = false;
 
         this.setupEventListeners();
-        this.loadReviewQueue();
     }
 
     setupEventListeners() {
@@ -509,16 +545,9 @@ class QuizEngine {
         document.getElementById('nextQuestion').addEventListener('click', () => this.nextQuestion());
         document.getElementById('prevQuestion').addEventListener('click', () => this.previousQuestion());
         document.getElementById('submitQuiz').addEventListener('click', () => this.submitQuiz());
-        document.getElementById('retakeQuiz').addEventListener('click', () => this.resetQuiz());
+        document.getElementById('retakeQuiz').addEventListener('click', () => this.retakeQuiz());
         document.getElementById('backToQuiz').addEventListener('click', () => this.backToLoad());
         
-        // New: Student name modal
-        document.getElementById('startQuizBtn').addEventListener('click', () => this.confirmStartQuiz());
-        document.getElementById('studentName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.confirmStartQuiz();
-            }
-        });
     }
 
     handleQuizUpload() {
@@ -530,36 +559,53 @@ class QuizEngine {
         reader.onload = (e) => {
             try {
                 const quiz = JSON.parse(e.target.result);
+                if (!this.isValidQuiz(quiz)) {
+                    throw new Error(PortalUI.text('invalidExamFile'));
+                }
                 this.showNameModal(quiz);
             } catch (error) {
-                alert('Invalid JSON file: ' + error.message);
+                alert(PortalUI.text('invalidQuizJson'));
             }
         };
         reader.readAsText(file);
     }
 
-    showNameModal(quiz) {
-        this.currentQuiz = quiz;
-        document.querySelector('.quiz-upload').classList.add('hidden');
-        document.getElementById('quizNameModal').classList.remove('hidden');
-        document.getElementById('studentName').value = '';
-        document.getElementById('studentName').focus();
+    isValidQuiz(quiz) {
+        return Boolean(
+            quiz &&
+            typeof quiz.title === 'string' &&
+            Array.isArray(quiz.questions) &&
+            quiz.questions.length > 0 &&
+            quiz.questions.every(question =>
+                typeof question.text === 'string' &&
+                Array.isArray(question.options) &&
+                question.options.length >= 2 &&
+                Number.isInteger(question.correct) &&
+                question.correct >= 0 &&
+                question.correct < question.options.length
+            )
+        );
     }
 
-    confirmStartQuiz() {
-        const name = document.getElementById('studentName').value.trim();
-        if (!name) {
-            alert('Please enter your name');
-            return;
+    showNameModal(quiz) {
+        this.currentQuiz = quiz;
+        if (window.PortalUI) {
+            PortalUI.addExam(quiz, document.getElementById('quizSubject')?.value || DEFAULT_SUBJECTS[0]);
         }
-        this.studentName = name;
-        document.getElementById('quizNameModal').classList.add('hidden');
-        this.startQuiz(this.currentQuiz);
+        document.querySelector('.quiz-upload').classList.add('hidden');
+        this.startQuiz(quiz);
     }
 
     startQuiz(quiz) {
+        const user = window.PortalBackend?.user;
+        this.studentName = window.PortalBackend?.profile?.display_name
+            || user?.user_metadata?.display_name
+            || user?.email?.split('@')[0]
+            || PortalUI.text('guest');
         this.userAnswers = new Array(quiz.questions.length).fill(null);
         this.currentQuestion = 0;
+        this.lastResult = null;
+        this.quizSubmitted = false;
 
         document.getElementById('quizSession').classList.remove('hidden');
         document.getElementById('quizResults').classList.add('hidden');
@@ -570,13 +616,16 @@ class QuizEngine {
     displayQuestion() {
         const question = this.currentQuiz.questions[this.currentQuestion];
         const isLastQuestion = this.currentQuestion === this.currentQuiz.questions.length - 1;
+        const answeredCount = this.userAnswers.filter(answer => answer !== null).length;
 
         document.getElementById('quizTitle').textContent = this.currentQuiz.title || 'Quiz';
         document.getElementById('questionText').textContent = question.text;
-        document.getElementById('questionProgress').textContent =
-            `${this.currentQuestion + 1} / ${this.currentQuiz.questions.length}`;
+        document.getElementById('questionProgress').textContent = PortalUI.text('answeredProgress', {
+            answered: answeredCount,
+            total: this.currentQuiz.questions.length
+        });
 
-        const progressPercent = ((this.currentQuestion + 1) / this.currentQuiz.questions.length) * 100;
+        const progressPercent = (answeredCount / this.currentQuiz.questions.length) * 100;
         document.getElementById('progressFill').style.width = progressPercent + '%';
 
         const optionsContainer = document.getElementById('optionsContainer');
@@ -599,9 +648,6 @@ class QuizEngine {
         document.getElementById('nextQuestion').classList.toggle('hidden', isLastQuestion);
         document.getElementById('submitQuiz').classList.toggle('hidden', !isLastQuestion);
 
-        // Check if this question is in the review queue
-        const inReview = this.reviewQueue.some(q => q.questionId === question.id);
-        document.getElementById('repetitionFlag').classList.toggle('hidden', !inReview);
     }
 
     selectAnswer(index) {
@@ -610,6 +656,13 @@ class QuizEngine {
         buttons.forEach((btn, i) => {
             btn.classList.toggle('selected', i === index);
         });
+        const answeredCount = this.userAnswers.filter(answer => answer !== null).length;
+        document.getElementById('questionProgress').textContent = PortalUI.text('answeredProgress', {
+            answered: answeredCount,
+            total: this.currentQuiz.questions.length
+        });
+        document.getElementById('progressFill').style.width =
+            `${(answeredCount / this.currentQuiz.questions.length) * 100}%`;
     }
 
     nextQuestion() {
@@ -626,7 +679,13 @@ class QuizEngine {
         }
     }
 
-    submitQuiz() {
+    async submitQuiz() {
+        if (this.quizSubmitted) return;
+        this.quizSubmitted = true;
+        const submitButton = document.getElementById('submitQuiz');
+        submitButton.disabled = true;
+        const saveMessage = document.getElementById('examSaveMessage');
+        saveMessage.textContent = PortalUI.text('savingExamResult');
         let correctCount = 0;
         const wrongAnswers = [];
 
@@ -646,78 +705,47 @@ class QuizEngine {
 
         const score = Math.round((correctCount / this.currentQuiz.questions.length) * 100);
 
-        // Add wrong answers to spaced repetition queue
-        this.addToReviewQueue(wrongAnswers);
-
         // Save quiz result locally
         const results = this.storage.get('quizResults', []);
-        results.push({
+        const result = {
+            attemptId: window.crypto?.randomUUID?.() || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+                const random = Math.random() * 16 | 0;
+                return (character === 'x' ? random : (random & 3 | 8)).toString(16);
+            }),
             quizTitle: this.currentQuiz.title,
             date: new Date().toISOString(),
             score: score,
             correctCount: correctCount,
             totalQuestions: this.currentQuiz.questions.length,
             studentName: this.studentName
-        });
-        this.storage.set('quizResults', results);
-
-        // Save to server
-        this.saveResultToServer(score);
-
-        this.displayResults(correctCount, wrongAnswers, score);
-    }
-
-    saveResultToServer(score) {
-        const resultData = {
-            name: this.studentName,
-            quizTitle: this.currentQuiz.title,
-            score: score,
-            date: new Date().toISOString()
         };
-
-        fetch('/api/quiz-results', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(resultData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Quiz result saved to server:', data);
-        })
-        .catch(error => {
-            console.error('Error saving quiz result:', error);
-        });
-    }
-
-    addToReviewQueue(wrongAnswers) {
-        const queue = this.storage.get('reviewQueue', []);
-
-        wrongAnswers.forEach(wrong => {
-            const existing = queue.find(q => q.questionId === wrong.questionId);
-            if (existing) {
-                existing.attempts++;
-                existing.lastAttempted = new Date().toISOString();
-            } else {
-                queue.push({
-                    ...wrong,
-                    attempts: 1,
-                    added: new Date().toISOString(),
-                    lastAttempted: new Date().toISOString()
+        results.push(result);
+        const savedLocally = this.storage.set('quizResults', results);
+        PortalUI.updateDashboard();
+        PortalUI.renderExamResults();
+        this.displayResults(correctCount, wrongAnswers, score);
+        try {
+            if (window.PortalBackend?.user) {
+                await PortalBackend.saveExamResult({
+                    ...result,
+                    examId: this.currentQuiz.id
                 });
+                saveMessage.textContent = PortalUI.text(savedLocally ? 'examResultSaved' : 'examResultSavedOnlineOnly');
+            } else {
+                saveMessage.textContent = PortalUI.text(savedLocally ? 'examResultSavedLocally' : 'localSaveFailed');
             }
-        });
-
-        this.storage.set('reviewQueue', queue);
-        this.loadReviewQueue();
-    }
-
-    loadReviewQueue() {
-        this.reviewQueue = this.storage.get('reviewQueue', []);
+        } catch (error) {
+            saveMessage.textContent = PortalUI.text(savedLocally ? 'examResultCloudSaveFailed' : 'examResultSaveFailed', {
+                message: error.message
+            });
+            console.error('Exam result cloud save failed:', error);
+        } finally {
+            submitButton.disabled = false;
+        }
     }
 
     displayResults(correctCount, wrongAnswers, score) {
+        this.lastResult = { correctCount, wrongAnswers, score };
         document.getElementById('quizSession').classList.add('hidden');
         document.getElementById('quizResults').classList.remove('hidden');
 
@@ -725,43 +753,57 @@ class QuizEngine {
         document.getElementById('correctCount').textContent = `${correctCount}/${this.currentQuiz.questions.length}`;
 
         const reviewContainer = document.getElementById('reviewContainer');
-        reviewContainer.innerHTML = '<h3>Review Answers</h3>';
+        reviewContainer.replaceChildren();
+        const reviewHeading = document.createElement('h3');
+        reviewHeading.textContent = PortalUI.text('reviewAnswers');
+        reviewContainer.appendChild(reviewHeading);
 
         if (wrongAnswers.length > 0) {
-            reviewContainer.innerHTML += '<h4 style="color: var(--error-color);">Wrong Answers:</h4>';
+            const wrongHeading = document.createElement('h4');
+            wrongHeading.textContent = PortalUI.text('wrongAnswers');
+            reviewContainer.appendChild(wrongHeading);
             wrongAnswers.forEach(wrong => {
                 const div = document.createElement('div');
                 div.className = 'review-item';
-                div.innerHTML = `
-                    <p><strong>${wrong.text}</strong></p>
-                    <p>Your answer: ${wrong.userAnswer}</p>
-                    <p style="color: var(--success-color);">Correct answer: ${wrong.correctAnswer}</p>
-                `;
+                const question = document.createElement('p');
+                const questionText = document.createElement('strong');
+                questionText.textContent = wrong.text;
+                question.appendChild(questionText);
+                const userAnswer = document.createElement('p');
+                userAnswer.textContent = `${PortalUI.text('yourAnswer')}: ${wrong.userAnswer ?? PortalUI.text('noAnswer')}`;
+                const correctAnswer = document.createElement('p');
+                correctAnswer.textContent = `${PortalUI.text('correctAnswer')}: ${wrong.correctAnswer}`;
+                correctAnswer.style.color = 'var(--success-color)';
+                div.append(question, userAnswer, correctAnswer);
                 reviewContainer.appendChild(div);
             });
         }
 
-        if (this.reviewQueue.length > 0) {
-            const reviewCount = this.reviewQueue.length;
-            const reviewNotice = document.createElement('div');
-            reviewNotice.className = 'review-notice';
-            reviewNotice.innerHTML = `<p>⚠️ You have ${reviewCount} question(s) marked for spaced repetition review.</p>`;
-            reviewContainer.appendChild(reviewNotice);
-        }
     }
 
     resetQuiz() {
         this.currentQuiz = null;
+        this.lastResult = null;
         this.studentName = '';
         this.userAnswers = [];
         this.currentQuestion = 0;
 
-        document.querySelector('.quiz-upload').classList.remove('hidden');
         document.getElementById('quizSession').classList.add('hidden');
         document.getElementById('quizResults').classList.add('hidden');
-        document.getElementById('quizNameModal').classList.add('hidden');
 
         document.getElementById('quizFile').value = '';
+    }
+
+    retakeQuiz() {
+        if (!this.currentQuiz) {
+            this.resetQuiz();
+            return;
+        }
+        this.userAnswers = new Array(this.currentQuiz.questions.length).fill(null);
+        this.currentQuestion = 0;
+        document.getElementById('quizResults').classList.add('hidden');
+        document.getElementById('quizSession').classList.remove('hidden');
+        this.displayQuestion();
     }
 
     backToLoad() {
@@ -805,10 +847,10 @@ class NotesManager {
     saveNote() {
         const title = document.getElementById('noteTitle').value.trim() || 'Untitled';
         const content = document.getElementById('noteContent').value;
-        const subject = document.getElementById('noteSubject') ? document.getElementById('noteSubject').value : 'General';
+        const subject = document.getElementById('noteSubject') ? document.getElementById('noteSubject').value : DEFAULT_SUBJECTS[0];
 
         if (!content.trim()) {
-            alert('Note content cannot be empty');
+            alert(PortalUI.text('noteContentRequired'));
             return;
         }
 
@@ -827,12 +869,12 @@ class NotesManager {
 
         this.storage.set('notes', this.notes);
         this.renderNotesList();
-        alert('Note saved!');
+        alert(PortalUI.text('noteSaved'));
     }
 
     deleteNote() {
         if (!this.currentNoteId) return;
-        if (!confirm('Delete this note?')) return;
+        if (!confirm(PortalUI.text('confirmDeleteNote'))) return;
 
         delete this.notes[this.currentNoteId];
         this.storage.set('notes', this.notes);
@@ -862,7 +904,9 @@ class NotesManager {
         Object.keys(grouped).forEach(subject => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'notes-folder';
-            folderDiv.innerHTML = `<strong>📁 ${subject}</strong>`;
+            const folderTitle = document.createElement('strong');
+            folderTitle.textContent = `📁 ${PortalUI.subjectName(subject)}`;
+            folderDiv.appendChild(folderTitle);
             grouped[subject].forEach(note => {
                 const div = document.createElement('div');
                 div.className = 'note-item';
@@ -983,6 +1027,629 @@ class StudyTracker {
 }
 
 // ============================================================================
+// SUBJECT TOOLS - Helpers and resources for each subject
+// ============================================================================
+class SubjectToolsManager {
+    constructor(storage) {
+        this.storage = storage;
+        this.subjects = [
+            {
+                key: 'arabic',
+                label: 'Arabic',
+                overview: 'Dictionary, grammar checks, and detailed إعراب analysis for Arabic sentences.',
+                tools: [
+                    { title: 'Arabic Dictionary Lookup', keyword: 'dictionary' },
+                    { title: 'Arabic Grammar Checker', keyword: 'grammar' },
+                    { title: 'I‘rab / Syntax Assistant', keyword: 'iʿrab' }
+                ],
+                resources: [
+                    { title: 'Almaany Arabic Dictionary', url: 'https://www.almaany.com/ar/', description: 'Arabic meanings with sample usage and root forms.' },
+                    { title: 'Nahw Grammar Lessons', url: 'https://www.arabicgrammar.com/', description: 'Structured grammar lessons for Arabic syntax and morphology.' },
+                    { title: 'Arabic Syntax Guide', url: 'https://qfi.org/resource/the-basics-of-arabic-grammar/', description: 'Practical guides for Arabic sentence structure and case endings.' }
+                ]
+            },
+            {
+                key: 'math',
+                label: 'Math',
+                overview: 'Scientific calculator, graph plotter, and math resources for algebra and geometry.',
+                tools: [
+                    { title: 'Scientific Calculator', keyword: 'calculator' },
+                    { title: 'Graphing Tool', keyword: 'graph' },
+                    { title: 'Formula Reference', keyword: 'formulas' }
+                ],
+                resources: [
+                    { title: 'Khan Academy Math', url: 'https://www.khanacademy.org/math', description: 'Free math lessons and practice across school topics.' },
+                    { title: 'Desmos Graphing Calculator', url: 'https://www.desmos.com/calculator', description: 'Interactive graphing for algebra and functions.' },
+                    { title: 'Math is Fun', url: 'https://www.mathsisfun.com/', description: 'Clear explanations and examples for core math ideas.' }
+                ]
+            },
+            {
+                key: 'english',
+                label: 'English',
+                overview: 'Grammar checking, dictionary lookup, and thesaurus support for English with Arabic translations.',
+                tools: [
+                    { title: 'English Dictionary Lookup', keyword: 'dictionary' },
+                    { title: 'Grammar Checker', keyword: 'grammar' },
+                    { title: 'Thesaurus Lookup', keyword: 'thesaurus' }
+                ],
+                resources: [
+                    { title: 'Cambridge Dictionary', url: 'https://dictionary.cambridge.org/', description: 'Definitions, pronunciation, and grammar examples.' },
+                    { title: 'Merriam-Webster Thesaurus', url: 'https://www.merriam-webster.com/thesaurus', description: 'Synonyms and antonyms for richer vocabulary.' },
+                    { title: 'Oxford Learner’s Dictionaries', url: 'https://www.oxfordlearnersdictionaries.com/', description: 'Learner-friendly English usage and examples.' }
+                ]
+            }
+        ];
+
+        this.arabicDictionary = {
+            كتاب: { meaningAr: 'كتاب', meaningEn: 'book', root: 'ك ت ب', pos: 'اسم', example: 'قرأتُ كتابًا مفيدًا.' },
+            طالب: { meaningAr: 'طالب', meaningEn: 'student', root: 'ط ل ب', pos: 'اسم', example: 'الطالبُ مجتهدٌ.' },
+            مدرسة: { meaningAr: 'مدرسة', meaningEn: 'school', root: 'م د ر س', pos: 'اسم', example: 'المدرسةُ واسعةٌ.' },
+            درس: { meaningAr: 'درس', meaningEn: 'lesson', root: 'د ر س', pos: 'اسم', example: 'درسُ اليومِ مفيدٌ.' },
+            علم: { meaningAr: 'علم', meaningEn: 'knowledge', root: 'ع ل م', pos: 'اسم', example: 'العلمُ نورٌ.' },
+            كتب: { meaningAr: 'كتب', meaningEn: 'he wrote / books', root: 'ك ت ب', pos: 'فعل / اسم', example: 'كتبَ الرسالةَ.' },
+            قرأ: { meaningAr: 'قرأ', meaningEn: 'he read', root: 'ق ر أ', pos: 'فعل', example: 'قرأَ الطالبُ الكتابَ.' },
+            بيت: { meaningAr: 'بيت', meaningEn: 'house', root: 'ب ي ت', pos: 'اسم', example: 'البيتُ جميلٌ.' },
+            كبير: { meaningAr: 'كبير', meaningEn: 'big', root: 'ك ب ر', pos: 'صفة', example: 'الكتابُ كبيرٌ.' }
+        };
+
+        this.englishTranslations = {
+            improve: 'تحسين',
+            student: 'طالب',
+            school: 'مدرسة',
+            study: 'يدرس',
+            book: 'كتاب',
+            difficult: 'صعب',
+            easy: 'سهل',
+            help: 'مساعدة',
+            grammar: 'قواعد',
+            sentence: 'جملة'
+        };
+
+        this.mathHistory = [];
+
+        this.currentSubject = 'arabic';
+        this.renderTabs();
+        this.renderSection();
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        document.getElementById('subjectToolsSearchBtn')?.addEventListener('click', () => this.handleSearch());
+        document.getElementById('subjectToolsSearch')?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                this.handleSearch();
+            }
+        });
+
+        document.getElementById('subjectToolsTabs')?.addEventListener('click', (event) => {
+            const button = event.target.closest('.subject-tool-btn');
+            if (!button) return;
+            const subject = button.dataset.subject;
+            if (subject) {
+                this.changeSubject(subject);
+            }
+        });
+    }
+
+    renderTabs() {
+        const tabsContainer = document.getElementById('subjectToolsTabs');
+        if (!tabsContainer) return;
+        tabsContainer.innerHTML = this.subjects.map(subject => `
+            <button type="button" class="subject-tool-btn${subject.key === this.currentSubject ? ' active' : ''}" data-subject="${subject.key}">
+                ${subject.label}
+            </button>
+        `).join('');
+    }
+
+    changeSubject(subjectKey) {
+        if (this.currentSubject === subjectKey) return;
+        this.currentSubject = subjectKey;
+        this.renderTabs();
+        this.renderSection();
+    }
+
+    handleSearch() {
+        const query = document.getElementById('subjectToolsSearch')?.value.trim().toLowerCase() || '';
+        this.renderSection(query);
+    }
+
+    getCurrentSubject() {
+        return this.subjects.find(subject => subject.key === this.currentSubject);
+    }
+
+    renderSection(searchQuery = '') {
+        const content = document.getElementById('subjectToolsContent');
+        if (!content) return;
+
+        const subject = this.getCurrentSubject();
+        if (!subject) return;
+
+        const searchResults = this.searchItems(searchQuery, subject);
+        const searchHtml = searchQuery ? this.renderSearchResults(searchResults, searchQuery) : '';
+        const toolPanel = this.renderSubjectPanel(subject);
+        const resourcePanel = this.renderResourcePanel(subject);
+
+        content.innerHTML = `${searchHtml}${toolPanel}${resourcePanel}`;
+        this.attachSubjectListeners(subject);
+    }
+
+    searchItems(query, currentSubject) {
+        if (!query) return [];
+        const normalized = query.toLowerCase();
+        const allItems = this.subjects.flatMap(subject => [
+            ...subject.tools.map(tool => ({ subject: subject.key, title: tool.title, type: 'tool' })),
+            ...subject.resources.map(resource => ({ subject: subject.key, title: resource.title, type: 'resource', url: resource.url }))
+        ]);
+        return allItems.filter(item => item.title.toLowerCase().includes(normalized));
+    }
+
+    renderSearchResults(results, query) {
+        if (results.length === 0) {
+            return `<div class="tool-card"><h4>Search Results</h4><p class="tool-output">No tools or resources found for "${query}". Try simpler keywords like dictionary, grammar, calculator, or thesaurus.</p></div>`;
+        }
+
+        return `
+            <div class="tool-card">
+                <h4>Search Results</h4>
+                <div class="search-results">
+                    ${results.map(result => `
+                        <div class="result-item" data-subject="${result.subject}" data-type="${result.type}" data-url="${result.url || ''}">
+                            <strong>${result.title}</strong>
+                            <div>Subject: ${this.subjects.find(s => s.key === result.subject)?.label || result.subject}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    renderSubjectPanel(subject) {
+        return `
+            <div class="tool-panel">
+                <div class="tool-card">
+                    <h3>${subject.label}</h3>
+                    <p>${subject.overview}</p>
+                </div>
+                ${this.renderSubjectTools(subject)}
+            </div>
+        `;
+    }
+
+    renderSubjectTools(subject) {
+        if (subject.key === 'arabic') {
+            return `
+                <div class="tool-grid">
+                    <div class="tool-card arabic-tool">
+                        <h4>Arabic Dictionary Lookup</h4>
+                        <label for="arabicLookupInput">Enter Arabic or English word</label>
+                        <input id="arabicLookupInput" dir="auto" type="text" placeholder="مثال: كتاب or book" class="input-field">
+                        <div class="tool-actions">
+                            <button id="arabicLookupBtn" class="btn btn-primary">Lookup</button>
+                        </div>
+                        <div id="arabicLookupResult" class="tool-output">Type a word and click Lookup.</div>
+                    </div>
+                    <div class="tool-card arabic-tool">
+                        <h4>Arabic Grammar Checker</h4>
+                        <label for="arabicGrammarInput">Enter a short sentence</label>
+                        <textarea id="arabicGrammarInput" dir="auto" placeholder="اكتب جملة عربية هنا..."></textarea>
+                        <div class="tool-actions">
+                            <button id="arabicGrammarBtn" class="btn btn-primary">Check Grammar</button>
+                        </div>
+                        <div id="arabicGrammarResult" class="tool-output">Paste a sentence to get grammar hints.</div>
+                    </div>
+                    <div class="tool-card arabic-tool">
+                        <h4>I‘rab / Syntax Assistant</h4>
+                        <label for="arabicI3rabInput">Enter a sentence for detailed analysis</label>
+                        <input id="arabicI3rabInput" dir="auto" type="text" placeholder="مثال: الطالبُ يدرسُ الدرسَ" class="input-field">
+                        <div class="tool-actions">
+                            <button id="arabicI3rabBtn" class="btn btn-primary">Analyze</button>
+                        </div>
+                        <div id="arabicI3rabResult" class="tool-output">This tool analyzes Arabic sentence structure and case endings.</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (subject.key === 'math') {
+            return `
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h4>Scientific Calculator</h4>
+                        <label for="mathCalcInput">Enter expression</label>
+                        <input id="mathCalcInput" type="text" placeholder="Example: 2*(3+1)/4 or sin(45)" class="input-field">
+                        <div class="tool-actions">
+                            <button id="mathCalcBtn" class="btn btn-primary">Calculate</button>
+                        </div>
+                        <div id="mathCalcResult" class="tool-output">Enter a math expression and click Calculate.</div>
+                        <div id="mathCalcHistory" class="tool-output" style="font-size:0.95rem;">Calculation history will appear here.</div>
+                    </div>
+                    <div class="tool-card">
+                        <h4>Graphing Tool</h4>
+                        <label for="mathGraphInput">Function of x</label>
+                        <input id="mathGraphInput" type="text" placeholder="Example: x^2 - 3*x + 2" class="input-field">
+                        <div class="tool-actions">
+                            <button id="mathGraphBtn" class="btn btn-primary">Plot Graph</button>
+                        </div>
+                        <div class="tool-output">
+                            <canvas id="mathGraphCanvas" width="500" height="260"></canvas>
+                            <div id="mathGraphHint" style="margin-top:0.75rem;color:var(--text-secondary);font-size:0.9rem;">Supported functions: sin, cos, tan, sqrt, abs, log, exp, PI, E.</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (subject.key === 'english') {
+            return `
+                <div class="tool-grid">
+                    <div class="tool-card">
+                        <h4>English Dictionary Lookup</h4>
+                        <label for="englishLookupInput">Enter English word</label>
+                        <input id="englishLookupInput" type="text" placeholder="Example: improve" class="input-field">
+                        <div class="tool-actions">
+                            <button id="englishLookupBtn" class="btn btn-primary">Lookup</button>
+                        </div>
+                        <div id="englishLookupResult" class="tool-output">Searches the free dictionary API for definitions and examples.</div>
+                    </div>
+                    <div class="tool-card">
+                        <h4>Grammar Checker</h4>
+                        <label for="englishGrammarInput">Enter a sentence</label>
+                        <textarea id="englishGrammarInput" placeholder="Type an English sentence here..."></textarea>
+                        <div class="tool-actions">
+                            <button id="englishGrammarBtn" class="btn btn-primary">Check Grammar</button>
+                        </div>
+                        <div id="englishGrammarResult" class="tool-output">Simple grammar hints will appear here.</div>
+                    </div>
+                    <div class="tool-card">
+                        <h4>Thesaurus Lookup</h4>
+                        <label for="englishThesaurusInput">Enter word</label>
+                        <input id="englishThesaurusInput" type="text" placeholder="Example: strong" class="input-field">
+                        <div class="tool-actions">
+                            <button id="englishThesaurusBtn" class="btn btn-primary">Find Synonyms</button>
+                        </div>
+                        <div id="englishThesaurusResult" class="tool-output">Shows synonyms from a free API when available.</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return '<div class="tool-card"><p>No subject tools available.</p></div>';
+    }
+
+    renderResourcePanel(subject) {
+        return `
+            <div class="resource-card">
+                <h4>Curated Resources</h4>
+                <ul class="resource-list">
+                    ${subject.resources.map(resource => `
+                        <li>
+                            <a href="${resource.url}" target="_blank" rel="noopener noreferrer">${resource.title}</a>
+                            ${resource.description ? `<p style="margin:0.4rem 0 0; color: var(--text-secondary); font-size:0.95rem;">${resource.description}</p>` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    attachSubjectListeners(subject) {
+        if (subject.key === 'arabic') {
+            document.getElementById('arabicLookupBtn')?.addEventListener('click', () => this.lookupArabicWord());
+            document.getElementById('arabicGrammarBtn')?.addEventListener('click', () => this.checkArabicGrammar());
+            document.getElementById('arabicI3rabBtn')?.addEventListener('click', () => this.analyzeArabicI3rab());
+        }
+
+        if (subject.key === 'math') {
+            document.getElementById('mathCalcBtn')?.addEventListener('click', () => this.calculateMathExpression());
+            document.getElementById('mathGraphBtn')?.addEventListener('click', () => this.plotMathGraph());
+        }
+
+        if (subject.key === 'english') {
+            document.getElementById('englishLookupBtn')?.addEventListener('click', () => this.lookupEnglishWord());
+            document.getElementById('englishGrammarBtn')?.addEventListener('click', () => this.checkEnglishGrammar());
+            document.getElementById('englishThesaurusBtn')?.addEventListener('click', () => this.lookupEnglishThesaurus());
+        }
+
+        const searchResults = document.querySelectorAll('.search-results .result-item');
+        searchResults.forEach(item => {
+            item.addEventListener('click', () => {
+                const subject = item.dataset.subject;
+                if (subject) {
+                    this.changeSubject(subject);
+                    document.getElementById('subjectToolsSearch').value = '';
+                    this.renderSection();
+                }
+            });
+        });
+    }
+
+    lookupArabicWord() {
+        const input = document.getElementById('arabicLookupInput');
+        const result = document.getElementById('arabicLookupResult');
+        const word = input?.value.trim();
+        if (!word) {
+            if (result) result.textContent = 'Please enter a word.';
+            return;
+        }
+
+        const englishMatch = word.toLowerCase();
+        if (/[A-Za-z]/.test(word)) {
+            const translation = this.englishTranslations[englishMatch];
+            if (translation) {
+                result.textContent = `English: ${word}\nArabic: ${translation}`;
+                return;
+            }
+            result.textContent = `No local Arabic translation found for "${word}". Try another English word.`;
+            return;
+        }
+
+        const entry = this.arabicDictionary[word];
+        if (entry) {
+            result.textContent = `الكلمة: ${entry.meaningAr}\nالنوع: ${entry.pos}\nالمعنى بالإنجليزية: ${entry.meaningEn}\nالجذر: ${entry.root}\nمثال: ${entry.example}`;
+            return;
+        }
+
+        result.textContent = 'No local Arabic entry found. Extend the dictionary or connect to an Arabic dictionary API for richer results.';
+    }
+
+    checkArabicGrammar() {
+        const input = document.getElementById('arabicGrammarInput');
+        const result = document.getElementById('arabicGrammarResult');
+        const text = input?.value.trim();
+        if (!text) {
+            if (result) result.textContent = 'Please enter a sentence to check.';
+            return;
+        }
+
+        const issues = [];
+        if (text.includes('  ')) issues.push('احذف المسافات المكررة واستخدم مسافة واحدة فقط.');
+        if (/[A-Za-z]/.test(text)) issues.push('الجملة تحتوي على أحرف لاتينية؛ يرجى استخدام حروف عربية.');
+        if (text.length < 10) issues.push('اكتب جملة أطول للحصول على تحليل أفضل.');
+        if (!/[.!؟]$/.test(text)) issues.push('يفضل أن تنتهي الجملة بنقطة أو علامة استفهام أو تعجب.');
+
+        const nominalSentence = /^[^\s]+\s+[^\s]+/.test(text) && !/^(ي|ت|أ|س)/.test(text);
+        if (nominalSentence) {
+            issues.push('الجملة تبدو اسمية. تأكد من وجود مبتدأ وخبر مناسبين.');
+        }
+
+        result.textContent = issues.length > 0 ? `ملاحظات لغوية:\n- ${issues.join('\n- ')}` : 'لا توجد أخطاء واضحة. هذه ملاحظات عامة فقط لتحسين صياغة الجملة.';
+    }
+
+    analyzeArabicI3rab() {
+        const input = document.getElementById('arabicI3rabInput');
+        const result = document.getElementById('arabicI3rabResult');
+        const text = input?.value.trim();
+        if (!text) {
+            if (result) result.textContent = 'Please enter a sentence for syntax analysis.';
+            return;
+        }
+
+        const particles = ['في', 'من', 'على', 'إلى', 'عن', 'ب', 'ك', 'ل', 'سوف', 'لم', 'لن', 'إن', 'أن', 'كان', 'هل', 'ما', 'ماذا', 'لمّا', 'أنّ', 'لكن', 'بل'];
+        const verbs = ['ذهب', 'يذهب', 'درس', 'يدرس', 'قرأ', 'يقرأ', 'كتب', 'يكتب', 'عمل', 'يفعل', 'أكل', 'يشرب', 'نام', 'يسافر', 'كان', 'يكون'];
+        const pronouns = ['أنا', 'أنت', 'أنتِ', 'هو', 'هي', 'نحن', 'أنتم', 'أنتن', 'هم', 'هن', 'هما'];
+        const words = text.split(/\s+/).filter(Boolean);
+
+        const analysis = words.map(word => {
+            let role = 'اسم محتمل';
+            let caseHint = 'مرفوع محتمل';
+
+            if (particles.includes(word)) {
+                role = 'حرف جر / أداة';
+                caseHint = 'لاحقاً اسم مجرور أو جملة فعلية';
+            } else if (pronouns.includes(word)) {
+                role = 'ضمير';
+                caseHint = 'مرفوع غالباً كفاعل أو مبتدأ';
+            } else if (verbs.includes(word) || /^[ي|ت|أ|س][\u0600-\u06FF]+$/.test(word) || /^(فعل|كتب|درس)$/.test(word)) {
+                role = 'فعل';
+                caseHint = 'لا ينعوت بالحركات هنا ويأتي بعده فاعل ومنصوبات';
+            } else if (word.endsWith('ُ') || word.endsWith('ٌ') || word.endsWith('وا') || word.endsWith('ون')) {
+                role = 'فاعل أو مبتدأ';
+                caseHint = 'مرفوع';
+            } else if (word.endsWith('َ') || word.endsWith('ً') || word.endsWith('ا') || word.endsWith('ة')) {
+                role = 'مفعول به أو خبر';
+                caseHint = 'منصوب أو خبر ممكن';
+            } else if (word.startsWith('ال')) {
+                role = 'اسم معرفة';
+                caseHint = 'قد يكون مبتدأ أو خبر أو مضاف إليه';
+            }
+
+            return { word, role, caseHint };
+        });
+
+        const first = words[0] || '';
+        const sentenceType = verbs.includes(first) || first.startsWith('ي') || first.startsWith('ت') || first.startsWith('أ') ? 'جملة فعلية محتملة' : 'جملة اسمية محتملة';
+
+        let summary = `نوع الجملة: ${sentenceType}\n`;
+        summary += 'تحليل الكلمات:\n';
+        summary += analysis.map((item, idx) => `${idx + 1}. ${item.word} — ${item.role} — ${item.caseHint}`).join('\n');
+
+        const prepositionIndex = words.findIndex(w => particles.includes(w));
+        if (prepositionIndex !== -1 && prepositionIndex < words.length - 1) {
+            summary += `\n\nجار ومجرور محتمل: ${words[prepositionIndex]} ${words[prepositionIndex + 1]}`;
+        }
+
+        summary += '\n\nملاحظة: هذا تحليل مبسط. راجع قواعد النحو العربية للتحقق من حالة الإعراب النهائية.';
+        result.textContent = summary;
+    }
+
+    calculateMathExpression() {
+        const input = document.getElementById('mathCalcInput');
+        const result = document.getElementById('mathCalcResult');
+        const expression = input?.value.trim();
+        if (!expression) {
+            if (result) result.textContent = 'Please enter a math expression to calculate.';
+            return;
+        }
+
+        const sanitized = expression.replace(/\^/g, '**');
+        try {
+            const value = this.safeEvalMath(sanitized, 0);
+            result.textContent = `Result: ${value}`;
+        } catch (error) {
+            result.textContent = `Error evaluating expression: ${error.message}`;
+        }
+    }
+
+    plotMathGraph() {
+        const input = document.getElementById('mathGraphInput');
+        const canvas = document.getElementById('mathGraphCanvas');
+        const resultHint = document.getElementById('mathGraphHint');
+        const expression = input?.value.trim();
+        if (!expression || !canvas) {
+            if (resultHint) resultHint.textContent = 'Enter a function like x^2 - 3*x + 2 to see the graph.';
+            return;
+        }
+
+        const sanitized = expression.replace(/\^/g, '**');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+
+        const points = [];
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (let i = 0; i <= 100; i++) {
+            const x = -10 + (20 * i / 100);
+            try {
+                const y = this.safeEvalMath(sanitized, x);
+                if (typeof y === 'number' && Number.isFinite(y)) {
+                    points.push({ x, y });
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                }
+            } catch {
+                // ignore bad points
+            }
+        }
+
+        if (points.length === 0) {
+            resultHint.textContent = 'Could not plot this expression. Try a simpler formula using x, +, -, *, /, ^, sin, cos, sqrt.';
+            return;
+        }
+
+        const yRange = Math.max(maxY - minY, 1);
+        const toCanvasX = x => ((x + 10) / 20) * width;
+        const toCanvasY = y => height - ((y - minY) / yRange) * height;
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, toCanvasY(0));
+        ctx.lineTo(width, toCanvasY(0));
+        ctx.moveTo(toCanvasX(0), 0);
+        ctx.lineTo(toCanvasX(0), height);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((point, index) => {
+            const cx = toCanvasX(point.x);
+            const cy = toCanvasY(point.y);
+            if (index === 0) ctx.moveTo(cx, cy);
+            else ctx.lineTo(cx, cy);
+        });
+        ctx.stroke();
+
+        resultHint.textContent = `Graph plotted for y = ${expression}.`;
+    }
+
+    lookupEnglishWord() {
+        const input = document.getElementById('englishLookupInput');
+        const result = document.getElementById('englishLookupResult');
+        const word = input?.value.trim();
+        if (!word) {
+            if (result) result.textContent = 'Please enter a word.';
+            return;
+        }
+
+        if (result) result.textContent = 'Looking up word...';
+        fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!Array.isArray(data) || !data[0]) {
+                    result.textContent = `No definition found for "${word}".`;
+                    return;
+                }
+                const entry = data[0];
+                const meaning = entry.meanings?.[0];
+                const definition = meaning?.definitions?.[0]?.definition || 'No definition available.';
+                const example = meaning?.definitions?.[0]?.example || '';
+                result.textContent = `Definition: ${definition}${example ? `\nExample: ${example}` : ''}`;
+            })
+            .catch(() => {
+                if (result) result.textContent = 'Could not connect to the dictionary API. Check your internet connection.';
+            });
+    }
+
+    checkEnglishGrammar() {
+        const input = document.getElementById('englishGrammarInput');
+        const result = document.getElementById('englishGrammarResult');
+        const text = input?.value.trim();
+        if (!text) {
+            if (result) result.textContent = 'Please enter an English sentence.';
+            return;
+        }
+
+        const issues = [];
+        const lower = text.toLowerCase();
+        if (/(\b)(the|a|an)\s+\1/.test(lower)) issues.push('Repeated article detected.');
+        if (/\b(very very|so so|really really)\b/.test(lower)) issues.push('Avoid repeated intensifiers.');
+        if (/[A-Z][a-z]+\s+[A-Z][a-z]+/.test(text)) issues.push('Check capitalization; do not capitalize common words in the middle of a sentence.');
+        if (!/[.!?]$/.test(text)) issues.push('Consider ending the sentence with a period, question mark, or exclamation point.');
+
+        result.textContent = issues.length > 0 ? `Grammar hints:\n- ${issues.join('\n- ')}` : 'No obvious grammar issues detected. For deeper checking, use a dedicated grammar service.';
+    }
+
+    lookupEnglishThesaurus() {
+        const input = document.getElementById('englishThesaurusInput');
+        const result = document.getElementById('englishThesaurusResult');
+        const word = input?.value.trim();
+        if (!word) {
+            if (result) result.textContent = 'Please enter a word.';
+            return;
+        }
+
+        if (result) result.textContent = 'Looking up synonyms...';
+        fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(word)}&max=8`)
+            .then(res => res.json())
+            .then(data => {
+                if (!Array.isArray(data) || data.length === 0) {
+                    result.textContent = `No synonyms found for "${word}".`;
+                    return;
+                }
+                const synonyms = data.map(item => item.word).join(', ');
+                result.textContent = `Synonyms: ${synonyms}`;
+            })
+            .catch(() => {
+                if (result) result.textContent = 'Could not reach the thesaurus API. Check your network.';
+            });
+    }
+
+    safeEvalMath(expression, xValue) {
+        const normalized = expression.replace(/[^0-9a-zA-Z+\-*/().,\s_^]/g, '');
+        const allowed = /^(?:[0-9xX+\-*/().,\s^eE]+|(?:sin|cos|tan|abs|sqrt|log|exp|pow|PI|E))*$/i;
+        if (!allowed.test(normalized)) {
+            throw new Error('Expression contains unsupported characters or functions.');
+        }
+
+        const expressionWithX = normalized.replace(/\^/g, '**').replace(/x/gi, `(${xValue})`);
+        const fn = new Function(`return ${expressionWithX};`);
+        const result = fn();
+        if (typeof result !== 'number' || !Number.isFinite(result)) {
+            throw new Error('Invalid numeric result.');
+        }
+        return result;
+    }
+}
+
+// ============================================================================
 // FOCUS MODE - Minimalist UI toggle
 // ============================================================================
 class FocusMode {
@@ -1018,9 +1685,9 @@ class FocusMode {
 // UI CONTROLLER - Manages tab switching and modal operations
 // ============================================================================
 class UIController {
-    static init() {
+    static init(storage) {
         this.setupTabNavigation();
-        this.setupSettings();
+        this.setupSettings(storage);
     }
 
     static setupTabNavigation() {
@@ -1034,12 +1701,25 @@ class UIController {
 
                 // Add active to clicked button and corresponding pane
                 btn.classList.add('active');
-                document.getElementById(tabName).classList.add('active');
+                const pane = document.getElementById(tabName);
+                if (pane) pane.classList.add('active');
+                if (window.PortalUI) PortalUI.setPage(tabName);
+            });
+        });
+
+        document.querySelectorAll('[data-open-tab]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelector(`.tab-btn[data-tab="${button.dataset.openTab}"]`)?.click();
+            });
+        });
+        document.querySelectorAll('[data-open-profile]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelector('.tab-btn[data-tab="profile"]')?.click();
             });
         });
     }
 
-    static setupSettings() {
+    static setupSettings(storage) {
         const settingsModal = document.getElementById('settingsModal');
         document.getElementById('settingsToggle').addEventListener('click', () => {
             settingsModal.classList.remove('hidden');
@@ -1050,11 +1730,9 @@ class UIController {
         });
 
         document.getElementById('soundToggle').addEventListener('change', (e) => {
-            const settings = localStorage.getItem('studyDashboard_settings')
-                ? JSON.parse(localStorage.getItem('studyDashboard_settings'))
-                : {};
+            const settings = storage.get('settings', {});
             settings.soundEnabled = e.target.checked;
-            localStorage.setItem('studyDashboard_settings', JSON.stringify(settings));
+            storage.set('settings', settings);
         });
 
         document.getElementById('themeSelect').addEventListener('change', (e) => {
@@ -1358,10 +2036,9 @@ class LecturesManager {
 
     static init(storage) {
         this.storage = storage;
-        this.lectures = {};
+        this.lectures = this.loadLectures();
         this.setupEventListeners();
-        // Load from server (not localStorage)
-        this.loadLecturesFromServer();
+        this.render();
     }
 
     static loadLectures() {
@@ -1528,10 +2205,9 @@ class FilesManager {
 
     static init(storage) {
         this.storage = storage;
-        this.files = {};
+        this.files = this.loadFiles();
         this.setupEventListeners();
-        // Load from server (not localStorage)
-        this.loadFilesFromServer();
+        this.render();
     }
 
     static loadFiles() {
@@ -1644,40 +2320,102 @@ class FilesManager {
         if (!container) return;
         container.innerHTML = '';
 
-        this.SUBJECTS.forEach(subject => {
-            const folderDiv = document.createElement('div');
-            folderDiv.className = 'folder-item';
-            folderDiv.innerHTML = `
-                <div class="folder-header">
-                    <span class="folder-icon">📁</span>
-                    <div class="folder-info">
-                        <div class="folder-name">${subject.labelEn}</div>
-                        <div class="folder-label">${subject.label}</div>
-                        <div class="folder-count">${(this.files[subject.key] || []).length} files</div>
-                    </div>
-                </div>
-            `;
+        const files = Object.entries(this.files).flatMap(([subject, entries]) =>
+            entries.map(file => ({ ...file, subject }))
+        );
+        if (!files.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            const heading = document.createElement('h3');
+            heading.textContent = PortalUI.text('noFilesYet');
+            const description = document.createElement('p');
+            description.textContent = PortalUI.text('filesSetupText');
+            empty.append(heading, description);
+            container.appendChild(empty);
+            return;
+        }
 
-            const filesList = document.createElement('div');
-            filesList.className = 'folder-contents hidden';
-            (this.files[subject.key] || []).forEach(file => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                const icon = file.type.includes('pdf') ? '📄' : '🖼️';
-                fileItem.innerHTML = `
-                    <span class="file-icon">${icon}</span>
-                    <span class="file-name">${file.name}</span>
-                    <small>${(file.size / 1024).toFixed(2)} KB</small>
-                `;
-                filesList.appendChild(fileItem);
-            });
+        files.forEach(file => {
+            const card = document.createElement('article');
+            card.className = 'resource-card';
+            const icon = document.createElement('span');
+            icon.className = 'resource-icon';
+            icon.textContent = this.fileExtension(file) === 'pdf' ? '▤' : '▧';
+            const details = document.createElement('div');
+            details.className = 'resource-details';
+            const name = document.createElement('strong');
+            name.textContent = file.name;
+            const meta = document.createElement('span');
+            meta.textContent = `${PortalUI.subjectName(file.subject)} · ${this.fileExtension(file).toUpperCase()}`;
+            details.append(name, meta);
 
-            folderDiv.appendChild(filesList);
-            folderDiv.addEventListener('click', () => {
-                filesList.classList.toggle('hidden');
-            });
-            container.appendChild(folderDiv);
+            const actions = document.createElement('div');
+            actions.className = 'resource-actions';
+            const view = document.createElement('button');
+            view.className = 'btn btn-secondary';
+            view.type = 'button';
+            view.textContent = PortalUI.text('viewFile');
+            view.addEventListener('click', () => this.openFile(file));
+            const download = document.createElement('a');
+            download.className = 'btn btn-primary';
+            download.href = file.downloadUrl || file.url;
+            download.download = file.downloadName || file.name;
+            download.target = '_blank';
+            download.rel = 'noopener noreferrer';
+            download.textContent = PortalUI.text('downloadFile');
+            download.addEventListener('click', () => this.trackDownload(file));
+            actions.append(view, download);
+            card.append(icon, details, actions);
+            if (PortalBackend.configured && PortalBackend.isAdmin()) {
+                const adminActions = document.createElement('div');
+                adminActions.className = 'resource-admin-actions';
+                adminActions.append(
+                    PortalUI.createAdminButton('edit', () => PortalUI.editFile(file)),
+                    PortalUI.createAdminButton('delete', () => PortalUI.deleteFile(file))
+                );
+                card.appendChild(adminActions);
+            }
+            container.appendChild(card);
         });
+    }
+
+    static fileExtension(file) {
+        const type = (file.type || '').toLowerCase();
+        const typeExtensions = {
+            'application/pdf': 'pdf',
+            'text/plain': 'txt',
+            'text/markdown': 'md',
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/gif': 'gif'
+        };
+        return typeExtensions[type] || file.name.split('.').pop().toLowerCase();
+    }
+
+    static trackDownload(file) {
+        const downloaded = PortalUI.storage.get('downloadedFiles', []);
+        const key = file.objectPath || file.url || file.name;
+        if (!downloaded.includes(key)) {
+            downloaded.push(key);
+            PortalUI.storage.set('downloadedFiles', downloaded);
+            PortalUI.updateDashboard();
+        }
+    }
+
+    static openFile(file) {
+        if (!file.url) return;
+        const url = new URL(file.url, window.location.href);
+        if (!['http:', 'https:'].includes(url.protocol)) return;
+        const modal = document.getElementById('fileViewerModal');
+        const viewer = document.getElementById('fileViewer');
+        const extension = this.fileExtension(file);
+        if (!['pdf', 'txt', 'md', 'png', 'jpg', 'jpeg', 'gif'].includes(extension)) {
+            window.open(url.href, '_blank', 'noopener,noreferrer');
+            return;
+        }
+        document.getElementById('fileViewerTitle').textContent = file.name;
+        viewer.src = url.href;
+        modal.classList.remove('hidden');
     }
 }
 
@@ -1732,6 +2470,7 @@ const LANGUAGES = {
         importData: '📤 Import Data',
         clearAllData: 'Clear All Data',
         settings: 'Settings',
+        subjectTools: 'Subject Tools',
         enableSound: 'Enable Sound Notifications',
         theme: 'Theme:',
         light: 'Light',
@@ -1802,6 +2541,7 @@ const LANGUAGES = {
         importData: '📤 استيراد البيانات',
         clearAllData: 'مسح كل البيانات',
         settings: 'الإعدادات',
+        subjectTools: 'أدوات المواد',
         enableSound: 'تفعيل إشعارات الصوت',
         theme: 'السمة:',
         light: 'فاتح',
@@ -1828,22 +2568,192 @@ const LANGUAGES = {
     }
 };
 
+const PORTAL_TRANSLATIONS = {
+    en: {
+        metaDescription: 'Luma Study — your calm, connected learning space', mainNavigation: 'Main navigation',
+        closeVideo: 'Close video', youtubePlayer: 'YouTube video player', closeFileViewer: 'Close file viewer', filePreview: 'File preview',
+        closeSettings: 'Close settings', changeLanguage: 'Change language', english: 'English', arabic: 'Arabic',
+        enableSound: 'Enable sound notifications', theme: 'Theme:', light: 'Light', dark: 'Dark',
+        madeWithLove: 'Made with ❤️ by',
+        enterYourName: 'Please enter your name:', nameExample: 'e.g., John Doe', startQuiz: 'Start quiz',
+        invalidQuizJson: 'Could not load the quiz. Check that the selected file is valid quiz JSON.',
+        enterName: 'Please enter your name.', reviewAnswers: 'Review answers', wrongAnswers: 'Wrong answers:',
+        savingExamResult: 'Saving your score…', examResultSaved: 'Score saved to your account.',
+        examResultSavedOnlineOnly: 'Score saved to your account, but not on this device.',
+        examResultSavedLocally: 'Score saved on this device. Sign in to save it to your account.',
+        examResultCloudSaveFailed: 'Score saved on this device, but account sync failed: {message}',
+        examResultSaveFailed: 'Could not save your score on this device or to your account: {message}',
+        localSaveFailed: 'Could not save this score on this device.',
+        yourAnswer: 'Your answer', correctAnswer: 'Correct answer', noAnswer: 'No answer selected',
+        noteContentRequired: 'Note content cannot be empty.', noteSaved: 'Note saved!', confirmDeleteNote: 'Delete this note?',
+        subjectArabic: 'Arabic', subjectEnglish: 'English', subjectHistory: 'History',
+        quizTitle: 'Quiz', questionPrompt: 'Question text here', loadQuiz: 'Load quiz',
+        loadQuizJson: 'Load quiz JSON', quizJsonFormat: 'Quiz JSON format',
+        previous: '← Previous', next: 'Next →', submitQuiz: 'Submit quiz',
+        quizResults: 'Quiz results', score: 'Score', correct: 'Correct',
+        retakeQuiz: 'Retake quiz', backToLoad: 'Back to exams',
+        workspace: 'WORKSPACE', dashboard: 'Dashboard', community: 'Community', videos: 'Videos', exams: 'Exams', files: 'Files', profile: 'Profile', settings: 'Settings', language: 'Language:',
+        detailedProgress: 'Detailed study progress and data',
+        guest: 'Guest learner', localProgress: 'Progress saved on this device', learningSpace: 'YOUR LEARNING SPACE',
+        dashboardIntro: 'A clear view of your learning, all in one calm space.', globalRoom: 'GLOBAL ROOM',
+        communityIntro: 'Ask a question, share an idea, and learn together.', everyoneTogether: 'Everyone, together',
+        studyCommunity: 'Study community', oneSharedRoom: 'One shared room for every learner', setupRequired: 'Setup required',
+        communityReadyTitle: 'Your study community is ready', communitySetupText: 'Connect a shared account and database to enable live messages for everyone.',
+        setUpAccount: 'Set up an account', writeMessage: 'Write a message...', send: 'Send',
+        communitySetupNote: 'Live chat is unavailable until shared backend credentials are configured.',
+        yourAccount: 'YOUR ACCOUNT', profileIntro: 'Manage your account and keep your learning in sync.',
+        notSignedIn: 'Not signed in', deviceOnly: 'Device-only mode', cloudSync: 'CLOUD SYNC',
+        createAccount: 'Create your account', alreadyHaveAccount: 'I already have an account',
+        backendSetupNeeded: 'Backend setup needed', backendSetupDescription: 'To enable secure sign-in and sync between devices, create a Supabase project and configure its public project URL and anonymous key. Never put a service-role key in the website.',
+        name: 'Name', email: 'Email', password: 'Password', signOut: 'Sign out',
+        knowledgeCheck: 'KNOWLEDGE CHECK', examIntro: 'Choose an exam and take it one question at a time.',
+        yourJourney: 'YOUR JOURNEY', pastResults: 'Previous results', noResultsYet: 'Your completed exams and scores will appear here.',
+        welcomeBack: 'WELCOME BACK', readyForToday: 'Ready for today?', browseExams: 'Browse exams',
+        examsCompleted: 'Exams completed', yourCompletedExams: 'Your completed exams', videosWatched: 'Videos watched',
+        keepLearning: 'Keep learning at your pace', filesDownloaded: 'Files downloaded', resourcesForLater: 'Resources saved for later',
+        studyStreak: 'Study streak', daysInARow: 'days in a row', whatsNext: "WHAT'S NEXT", upcomingExams: 'Upcoming exams',
+        viewAll: 'View all →', noUpcomingExams: 'No upcoming exams yet.', freshlyAdded: 'FRESHLY ADDED',
+        newVideos: 'New videos', noVideosYet: 'No videos have been added yet.', stayInTheLoop: 'STAY IN THE LOOP',
+        updatesAndMessages: 'Updates & messages', openCommunity: 'Open community →', noNotifications: 'You’re all caught up.',
+        watchAndLearn: 'WATCH & LEARN', videosIntro: 'Lessons and explainers, organized by subject.',
+        resourceLibrary: 'RESOURCE LIBRARY', filesIntro: 'Browse, preview, and download books and study resources.',
+        noFilesYet: 'No shared files are available yet.', filesSetupText: 'Study books and resources will appear here once they are added.',
+        viewFile: 'Preview', downloadFile: 'Download',
+        addVideo: 'Add video', videoTitle: 'Video title', youtubeTitleAuto: 'Fetched from YouTube', subject: 'Subject', youtubeUrl: 'YouTube link',
+        videoLocalNotice: 'Only the verified platform owner can publish shared videos. Configure the backend to enable content management.',
+        saveVideo: 'Save video', cancel: 'Cancel', filterBySubject: 'Filter by subject', allSubjects: 'All subjects',
+        fetchingVideoTitle: 'Getting the title from YouTube…', videoTitleLoaded: 'YouTube title loaded.',
+        videoTitleUnavailable: 'Could not get this video title from YouTube. Check the link and try again.',
+        edit: 'Edit', delete: 'Delete', confirmDeleteVideo: 'Delete this video?', confirmDeleteExam: 'Delete this exam?', confirmDeleteFile: 'Delete this file?',
+        resendConfirmation: 'Resend confirmation email', confirmationResent: 'A new confirmation email was sent. Check your inbox.',
+        examJsonPlaceholder: 'Paste exam JSON here to create or edit an exam.',
+        chooseFileOptional: 'Choose a file (optional when editing)', watchOnYoutube: 'Watch on YouTube',
+        ownerOnly: 'Only the platform owner can add, edit, or delete shared content.',
+        videosSetupText: 'YouTube lessons added by your study platform will appear here.',
+        videoSavedLocal: 'Video saved on this device. Shared publishing requires backend setup.',
+        invalidYoutube: 'Enter a valid YouTube video link.', answeredProgress: '{answered} of {total} answered',
+        startExam: 'Start exam', questions: 'questions', noExams: 'No exams are available yet.',
+        accountSetupRequired: 'Account service is not configured yet. Your account has not been created.',
+        signIn: 'Sign in', noAccount: 'Need an account?', alreadyHaveAccountShort: 'Already registered?',
+        newPassword: 'New password (optional)', saveChanges: 'Save changes', accountSettings: 'Account settings',
+        accountCreated: 'Account created. You are signed in.', confirmationSent: 'Check your email and click the confirmation link to finish creating your account.',
+        emailRateLimit: 'Too many confirmation emails were requested. Wait a while before trying again, or sign in if you already created your account.',
+        signInSuccess: 'Signed in successfully.', invalidCredentials: 'Email or password is incorrect.',
+        accountExists: 'An account already exists for this email.', passwordTooShort: 'Use a password with at least 8 characters.',
+        unexpectedError: 'Something went wrong. Please try again.', profileUpdated: 'Profile updated.',
+        signInToChat: 'Sign in to join the chat', signInToChatNote: 'Sign in to read and send messages in the shared group.',
+        cloudSynced: 'Synced across devices', signInToSync: 'Sign in to sync your progress', cloudSyncOn: 'Cloud sync is on',
+        connected: 'Connected', noChatMessages: 'Be the first to start the conversation.',
+        signInFirst: 'Sign in to join the shared group.', communityRespect: 'Keep the conversation kind and on topic.',
+        adminOnly: 'Only platform admins can publish shared content.', chooseExamFile: 'Choose a valid exam JSON file.',
+        invalidExamFile: 'Exam JSON must contain a title and valid multiple-choice questions.',
+        examPublished: 'Exam published for all learners.', publishExam: 'Publish exam', examJson: 'Exam JSON',
+        dueDate: 'Due date (optional)', addFile: 'Add file', fileTitle: 'File title', chooseFile: 'Choose a file',
+        uploadFile: 'Upload file', fileDetailsRequired: 'Choose a file and enter its title.',
+        unsupportedFileType: 'Use a PDF, text, Markdown, or image file.', fileUploaded: 'File shared with all learners.',
+        videoPublished: 'Video published for all learners.', videoUpdated: 'Video updated.', examUpdated: 'Exam updated.', examDeleted: 'Exam deleted.',
+        fileUpdated: 'File updated.', fileDeleted: 'File deleted.'
+    },
+    ar: {
+        metaDescription: 'لوما للدراسة — مساحة تعلم هادئة ومترابطة', mainNavigation: 'التنقل الرئيسي',
+        closeVideo: 'إغلاق الفيديو', youtubePlayer: 'مشغل فيديو يوتيوب', closeFileViewer: 'إغلاق عارض الملفات', filePreview: 'معاينة الملف',
+        closeSettings: 'إغلاق الإعدادات', changeLanguage: 'تغيير اللغة', english: 'الإنجليزية', arabic: 'العربية',
+        enableSound: 'تفعيل إشعارات الصوت', theme: 'المظهر:', light: 'فاتح', dark: 'داكن',
+        madeWithLove: 'صُنع بكل ❤️ بواسطة',
+        enterYourName: 'يرجى إدخال اسمك:', nameExample: 'مثال: أحمد محمد', startQuiz: 'ابدأ الاختبار',
+        invalidQuizJson: 'تعذر تحميل الاختبار. تحقق من أن الملف المحدد بصيغة JSON صالحة للاختبارات.',
+        enterName: 'يرجى إدخال اسمك.', reviewAnswers: 'مراجعة الإجابات', wrongAnswers: 'الإجابات الخاطئة:',
+        savingExamResult: 'جارٍ حفظ نتيجتك…', examResultSaved: 'تم حفظ النتيجة في حسابك.',
+        examResultSavedOnlineOnly: 'تم حفظ النتيجة في حسابك، لكن لم تُحفظ على هذا الجهاز.',
+        examResultSavedLocally: 'تم حفظ النتيجة على هذا الجهاز. سجل الدخول لحفظها في حسابك.',
+        examResultCloudSaveFailed: 'تم حفظ النتيجة على هذا الجهاز، لكن تعذرت المزامنة مع الحساب: {message}',
+        examResultSaveFailed: 'تعذر حفظ النتيجة على هذا الجهاز أو في حسابك: {message}',
+        localSaveFailed: 'تعذر حفظ النتيجة على هذا الجهاز.',
+        yourAnswer: 'إجابتك', correctAnswer: 'الإجابة الصحيحة', noAnswer: 'لم يتم اختيار إجابة',
+        noteContentRequired: 'لا يمكن أن يكون محتوى الملاحظة فارغاً.', noteSaved: 'تم حفظ الملاحظة!', confirmDeleteNote: 'هل تريد حذف هذه الملاحظة؟',
+        subjectArabic: 'العربية', subjectEnglish: 'الإنجليزية', subjectHistory: 'التاريخ',
+        quizTitle: 'الاختبار', questionPrompt: 'نص السؤال هنا', loadQuiz: 'تحميل اختبار',
+        loadQuizJson: 'تحميل اختبار JSON', quizJsonFormat: 'تنسيق اختبار JSON',
+        previous: 'السابق ←', next: '→ التالي', submitQuiz: 'إرسال الاختبار',
+        quizResults: 'نتائج الاختبار', score: 'النتيجة', correct: 'صحيح',
+        retakeQuiz: 'إعادة الاختبار', backToLoad: 'العودة إلى الاختبارات',
+        workspace: 'مساحة العمل', dashboard: 'لوحة التحكم', community: 'المجتمع', videos: 'الفيديوهات', exams: 'الاختبارات', files: 'الملفات', profile: 'الملف الشخصي', settings: 'الإعدادات', language: 'اللغة:',
+        detailedProgress: 'تفاصيل تقدم الدراسة والبيانات',
+        guest: 'متعلم زائر', localProgress: 'التقدم محفوظ على هذا الجهاز', learningSpace: 'مساحة التعلم الخاصة بك',
+        dashboardIntro: 'تابع تعلمك بوضوح وفي مساحة هادئة واحدة.', globalRoom: 'الغرفة العامة',
+        communityIntro: 'اطرح سؤالاً وشارك فكرة وتعلم مع الآخرين.', everyoneTogether: 'الجميع معاً',
+        studyCommunity: 'مجتمع الدراسة', oneSharedRoom: 'غرفة واحدة لجميع المتعلمين', setupRequired: 'الإعداد مطلوب',
+        communityReadyTitle: 'مجتمع الدراسة جاهز', communitySetupText: 'اربط حساباً وقاعدة بيانات مشتركة لتفعيل الرسائل المباشرة للجميع.',
+        setUpAccount: 'إعداد حساب', writeMessage: 'اكتب رسالة...', send: 'إرسال',
+        communitySetupNote: 'المحادثة المباشرة غير متاحة حتى إعداد بيانات الخادم المشترك.',
+        yourAccount: 'حسابك', profileIntro: 'أدر حسابك واحتفظ بتقدمك متزامناً.',
+        notSignedIn: 'لم يتم تسجيل الدخول', deviceOnly: 'الحفظ على هذا الجهاز فقط', cloudSync: 'المزامنة السحابية',
+        createAccount: 'أنشئ حسابك', alreadyHaveAccount: 'لدي حساب بالفعل',
+        backendSetupNeeded: 'يلزم إعداد الخادم', backendSetupDescription: 'لتفعيل تسجيل الدخول الآمن والمزامنة بين الأجهزة، أنشئ مشروع Supabase وأضف رابط المشروع والمفتاح العام المجهول. لا تضع مفتاح الخدمة السري في الموقع.',
+        name: 'الاسم', email: 'البريد الإلكتروني', password: 'كلمة المرور', signOut: 'تسجيل الخروج',
+        knowledgeCheck: 'اختبر معلوماتك', examIntro: 'اختر اختباراً وأجب عن الأسئلة واحداً تلو الآخر.',
+        yourJourney: 'رحلتك', pastResults: 'النتائج السابقة', noResultsYet: 'ستظهر هنا الاختبارات المكتملة ودرجاتك.',
+        welcomeBack: 'مرحباً بعودتك', readyForToday: 'هل أنت مستعد لليوم؟', browseExams: 'تصفح الاختبارات',
+        examsCompleted: 'الاختبارات المكتملة', yourCompletedExams: 'اختباراتك المكتملة', videosWatched: 'الفيديوهات المشاهدة',
+        keepLearning: 'واصل التعلم بالوتيرة المناسبة لك', filesDownloaded: 'الملفات المنزلة', resourcesForLater: 'مصادر محفوظة لاحقاً',
+        studyStreak: 'سلسلة الدراسة', daysInARow: 'أيام متتالية', whatsNext: 'ماذا بعد؟', upcomingExams: 'الاختبارات القادمة',
+        viewAll: 'عرض الكل ←', noUpcomingExams: 'لا توجد اختبارات قادمة حالياً.', freshlyAdded: 'أضيفت حديثاً',
+        newVideos: 'فيديوهات جديدة', noVideosYet: 'لم تتم إضافة فيديوهات بعد.', stayInTheLoop: 'ابق على اطلاع',
+        updatesAndMessages: 'التحديثات والرسائل', openCommunity: 'افتح المجتمع ←', noNotifications: 'أنت على اطلاع بكل شيء.',
+        watchAndLearn: 'شاهد وتعلم', videosIntro: 'دروس وشروحات مرتبة حسب المادة.',
+        resourceLibrary: 'مكتبة المصادر', filesIntro: 'تصفح الكتب ومصادر الدراسة واعرضها أو نزّلها.',
+        noFilesYet: 'لا توجد ملفات مشتركة حالياً.', filesSetupText: 'ستظهر كتب الدراسة والمصادر هنا عند إضافتها.',
+        viewFile: 'معاينة', downloadFile: 'تنزيل',
+        addVideo: 'إضافة فيديو', videoTitle: 'عنوان الفيديو', youtubeTitleAuto: 'يُجلب من يوتيوب', subject: 'المادة', youtubeUrl: 'رابط يوتيوب',
+        videoLocalNotice: 'مالك المنصة المؤكد وحده يستطيع نشر الفيديوهات المشتركة. أعد إعداد الخادم لتفعيل إدارة المحتوى.',
+        saveVideo: 'حفظ الفيديو', cancel: 'إلغاء', filterBySubject: 'تصفية حسب المادة', allSubjects: 'كل المواد',
+        fetchingVideoTitle: 'جارٍ جلب العنوان من يوتيوب…', videoTitleLoaded: 'تم جلب عنوان الفيديو من يوتيوب.',
+        videoTitleUnavailable: 'تعذر جلب عنوان الفيديو من يوتيوب. تحقق من الرابط وحاول مرة أخرى.',
+        edit: 'تعديل', delete: 'حذف', confirmDeleteVideo: 'هل تريد حذف هذا الفيديو؟', confirmDeleteExam: 'هل تريد حذف هذا الاختبار؟', confirmDeleteFile: 'هل تريد حذف هذا الملف؟',
+        resendConfirmation: 'إعادة إرسال رسالة التأكيد', confirmationResent: 'تم إرسال رسالة تأكيد جديدة. تحقق من بريدك.',
+        examJsonPlaceholder: 'الصق بيانات الاختبار بصيغة JSON لإنشاء اختبار أو تعديله.',
+        chooseFileOptional: 'اختر ملفاً (اختياري عند التعديل)', watchOnYoutube: 'شاهد على يوتيوب',
+        ownerOnly: 'مالك المنصة وحده يستطيع إضافة المحتوى المشترك أو تعديله أو حذفه.',
+        videosSetupText: 'ستظهر هنا دروس يوتيوب التي تضيفها منصة الدراسة.',
+        videoSavedLocal: 'تم حفظ الفيديو على هذا الجهاز. النشر المشترك يتطلب إعداد الخادم.',
+        invalidYoutube: 'أدخل رابط فيديو يوتيوب صالحاً.', answeredProgress: 'تمت الإجابة عن {answered} من {total}',
+        startExam: 'ابدأ الاختبار', questions: 'أسئلة', noExams: 'لا توجد اختبارات متاحة حالياً.',
+        accountSetupRequired: 'خدمة الحساب غير مُعدة بعد. لم يتم إنشاء حسابك.',
+        signIn: 'تسجيل الدخول', noAccount: 'تحتاج إلى حساب؟', alreadyHaveAccountShort: 'لديك حساب بالفعل؟',
+        newPassword: 'كلمة مرور جديدة (اختياري)', saveChanges: 'حفظ التغييرات', accountSettings: 'إعدادات الحساب',
+        accountCreated: 'تم إنشاء الحساب وتسجيل الدخول.', confirmationSent: 'تحقق من بريدك واضغط رابط التأكيد لإكمال إنشاء حسابك.',
+        emailRateLimit: 'تم طلب رسائل تأكيد كثيرة. انتظر قليلاً قبل المحاولة مجدداً، أو سجل الدخول إذا أنشأت حسابك بالفعل.',
+        signInSuccess: 'تم تسجيل الدخول بنجاح.', invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+        accountExists: 'يوجد حساب مسجل بهذا البريد الإلكتروني.', passwordTooShort: 'استخدم كلمة مرور من 8 أحرف على الأقل.',
+        unexpectedError: 'حدث خطأ. حاول مرة أخرى.', profileUpdated: 'تم تحديث الملف الشخصي.',
+        signInToChat: 'سجل الدخول للانضمام إلى المحادثة', signInToChatNote: 'سجل الدخول لقراءة الرسائل وإرسالها في المجموعة.',
+        cloudSynced: 'متزامن بين الأجهزة', signInToSync: 'سجل الدخول لمزامنة تقدمك', cloudSyncOn: 'المزامنة السحابية مفعلة',
+        connected: 'متصل', noChatMessages: 'ابدأ المحادثة وكن أول من يرسل رسالة.',
+        signInFirst: 'سجل الدخول للانضمام إلى المجموعة.', communityRespect: 'يرجى الحفاظ على حوار لطيف ومرتبط بالدراسة.',
+        adminOnly: 'يمكن لمسؤولي المنصة فقط نشر المحتوى المشترك.', chooseExamFile: 'اختر ملف JSON صالحاً للاختبار.',
+        invalidExamFile: 'يجب أن يحتوي JSON على عنوان وأسئلة اختيار من متعدد صالحة.',
+        examPublished: 'تم نشر الاختبار لجميع المتعلمين.', publishExam: 'نشر الاختبار', examJson: 'ملف JSON للاختبار',
+        dueDate: 'موعد الاختبار (اختياري)', addFile: 'إضافة ملف', fileTitle: 'عنوان الملف', chooseFile: 'اختر ملفاً',
+        uploadFile: 'رفع الملف', fileDetailsRequired: 'اختر ملفاً وأدخل عنوانه.',
+        unsupportedFileType: 'استخدم PDF أو ملفاً نصياً أو Markdown أو صورة.', fileUploaded: 'تمت مشاركة الملف مع جميع المتعلمين.',
+        videoPublished: 'تم نشر الفيديو لجميع المتعلمين.', videoUpdated: 'تم تحديث الفيديو.', examUpdated: 'تم تحديث الاختبار.', examDeleted: 'تم حذف الاختبار.',
+        fileUpdated: 'تم تحديث الملف.', fileDeleted: 'تم حذف الملف.'
+    }
+};
+
 function updateLanguageUI(lang) {
     const t = LANGUAGES[lang] || LANGUAGES.en;
     // Header
-    const h1 = document.querySelector('h1');
-    if (h1) h1.textContent = '📚 ' + t.studyDashboard;
+    const h1 = document.querySelector('.site-title');
+    if (h1) h1.textContent = 'Luma Study';
     const statLabels = document.querySelectorAll('.stat-label');
     if (statLabels[0]) statLabels[0].textContent = t.totalStudied;
     if (statLabels[1]) statLabels[1].textContent = t.dailyStreak;
     // Tabs
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    if (tabBtns[0]) tabBtns[0].textContent = '⏱️ ' + t.timer;
-    if (tabBtns[1]) tabBtns[1].textContent = '❓ ' + t.quiz;
-    if (tabBtns[2]) tabBtns[2].textContent = '📝 ' + t.notes;
-    if (tabBtns[3]) tabBtns[3].textContent = '📊 ' + t.progress;
-    if (tabBtns[4]) tabBtns[4].textContent = '🎥 ' + t.lectures;
-    if (tabBtns[5]) tabBtns[5].textContent = '📁 ' + t.files;
+    document.querySelectorAll('.tab-btn [data-i18n]').forEach(label => {
+        const key = label.dataset.i18n;
+        if (PORTAL_TRANSLATIONS[lang]?.[key]) label.textContent = PORTAL_TRANSLATIONS[lang][key];
+    });
     // Timer
     const timerStart = document.getElementById('timerStart');
     if (timerStart) timerStart.textContent = t.start;
@@ -1869,10 +2779,10 @@ function updateLanguageUI(lang) {
     if (quizUploadH3) quizUploadH3.textContent = t.loadQuiz;
     const loadQuizBtn = document.getElementById('loadQuizBtn');
     if (loadQuizBtn) loadQuizBtn.textContent = t.loadQuizJson;
-    const quizFormatHelpSummary = document.querySelector('.quiz-format-help summary');
-    if (quizFormatHelpSummary) quizFormatHelpSummary.textContent = '📋 ' + t.quizJsonFormat;
+    const quizFormatHelpSummary = document.querySelector('.quiz-format-help summary [data-i18n="quizJsonFormat"]');
+    if (quizFormatHelpSummary) quizFormatHelpSummary.textContent = t.quizJsonFormat;
     const quizTitle = document.getElementById('quizTitle');
-    if (quizTitle) quizTitle.textContent = t.quizTitle;
+    if (quizTitle && !window.quizEngine?.currentQuiz) quizTitle.textContent = t.quizTitle;
     const repetitionFlag = document.getElementById('repetitionFlag');
     if (repetitionFlag) repetitionFlag.textContent = '⚠️ ' + t.reviewNeeded;
     const prevQuestion = document.getElementById('prevQuestion');
@@ -1918,17 +2828,6 @@ function updateLanguageUI(lang) {
     // Settings
     const settingsModalH2 = document.querySelector('#settingsModal h2');
     if (settingsModalH2) settingsModalH2.textContent = t.settings;
-    const soundToggle = document.getElementById('soundToggle');
-    if (soundToggle && soundToggle.nextSibling && soundToggle.nextSibling.nodeType === 3) soundToggle.nextSibling.textContent = t.enableSound;
-    const themeSelect = document.getElementById('themeSelect');
-    if (themeSelect) {
-        const label = themeSelect.closest('label');
-        if (label && label.childNodes.length > 0) label.childNodes[0].textContent = t.theme;
-        const optLight = themeSelect.querySelector('option[value="light"]');
-        const optDark = themeSelect.querySelector('option[value="dark"]');
-        if (optLight) optLight.textContent = t.light;
-        if (optDark) optDark.textContent = t.dark;
-    }
     // Timer label (dynamic)
     const timerLabel = document.getElementById('timerLabel');
     if (timerLabel) {
@@ -1936,18 +2835,1094 @@ function updateLanguageUI(lang) {
     }
     // RTL support
     if (lang === 'ar') {
+        document.documentElement.lang = 'ar';
         document.documentElement.setAttribute('dir', 'rtl');
         document.body.style.textAlign = 'right';
     } else {
+        document.documentElement.lang = 'en';
         document.documentElement.setAttribute('dir', 'ltr');
         document.body.style.textAlign = '';
     }
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const translation = PORTAL_TRANSLATIONS[lang]?.[element.dataset.i18n];
+        if (translation) element.textContent = translation;
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const translation = PORTAL_TRANSLATIONS[lang]?.[element.dataset.i18nPlaceholder];
+        if (translation) element.placeholder = translation;
+    });
+    document.querySelectorAll('[data-i18n-title], [data-i18n-aria-label], [data-i18n-content]').forEach(element => {
+        [
+            ['title', element.dataset.i18nTitle],
+            ['aria-label', element.dataset.i18nAriaLabel],
+            ['content', element.dataset.i18nContent]
+        ].forEach(([attribute, key]) => {
+            const translation = PORTAL_TRANSLATIONS[lang]?.[key];
+            if (!translation) return;
+            if (attribute === 'content') element.setAttribute('content', translation);
+            else element.setAttribute(attribute, translation);
+        });
+    });
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'dashboard';
+    if (window.PortalUI) {
+        PortalUI.setPage(activeTab);
+        PortalUI.refreshDynamicLabels();
+        PortalUI.updateDate();
+        PortalUI.populateSubjects();
+        PortalUI.renderVideos();
+        PortalUI.renderExams();
+        PortalUI.renderExamResults();
+        PortalUI.updateDashboard();
+        FilesManager.render();
+    }
+    window.subjectsManager?.renderSubjectsList();
+    if (window.quizEngine?.currentQuiz && !document.getElementById('quizSession').classList.contains('hidden')) {
+        window.quizEngine.displayQuestion();
+    } else if (window.quizEngine?.currentQuiz
+        && window.quizEngine.lastResult
+        && !document.getElementById('quizResults').classList.contains('hidden')) {
+        window.quizEngine.displayResults(
+            window.quizEngine.lastResult.correctCount,
+            window.quizEngine.lastResult.wrongAnswers,
+            window.quizEngine.lastResult.score
+        );
+    }
 }
+
+window.PortalUI = {
+    storage: null,
+    videos: [],
+    exams: [],
+    currentTab: 'dashboard',
+    authMode: 'signup',
+    pendingConfirmationEmail: '',
+    editingVideoId: null,
+    editingExamId: null,
+    editingFile: null,
+
+    subjectName(subject) {
+        const key = {
+            Arabic: 'subjectArabic',
+            English: 'subjectEnglish',
+            History: 'subjectHistory'
+        }[subject];
+        return key ? this.text(key) : subject;
+    },
+
+    text(key, values = {}) {
+        let value = PORTAL_TRANSLATIONS[this.storage?.get('language', 'en') || 'en']?.[key]
+            || PORTAL_TRANSLATIONS.en[key]
+            || key;
+        Object.entries(values).forEach(([name, replacement]) => {
+            value = value.replace(`{${name}}`, replacement);
+        });
+        return value;
+    },
+
+    refreshDynamicLabels() {
+        const user = PortalBackend.user;
+        const configured = PortalBackend.configured;
+        document.getElementById('chatConnection').textContent =
+            this.text(user ? 'connected' : (configured ? 'signInToChat' : 'setupRequired'));
+        document.querySelector('.chat-note').textContent = this.text(
+            user ? 'communityRespect' : (configured ? 'signInToChatNote' : 'communitySetupNote')
+        );
+        document.getElementById('sidebarAccountState').textContent = this.text(
+            user ? 'cloudSynced' : (configured ? 'signInToSync' : 'localProgress')
+        );
+        document.querySelector('#syncStatus > span:last-child').textContent = this.text(
+            user ? 'cloudSyncOn' : (configured ? 'signInToSync' : 'deviceOnly')
+        );
+        document.getElementById('authHeading').textContent = this.text(
+            user ? 'accountSettings' : (this.authMode === 'signup' ? 'createAccount' : 'signIn')
+        );
+        if (!user) {
+            document.getElementById('authSubmit').textContent = this.text(
+                this.authMode === 'signup' ? 'createAccount' : 'signIn'
+            );
+            document.getElementById('authModeToggle').textContent = this.text(
+                this.authMode === 'signup' ? 'alreadyHaveAccount' : 'noAccount'
+            );
+        }
+        document.getElementById('showVideoForm').textContent = this.text('addVideo');
+        document.getElementById('saveVideoButton').textContent = this.text(this.editingVideoId ? 'saveChanges' : 'saveVideo');
+        document.getElementById('showExamForm').textContent = this.text('publishExam');
+        document.getElementById('publishExamButton').textContent = this.text(this.editingExamId ? 'saveChanges' : 'publishExam');
+        document.getElementById('showFileForm').textContent = this.text('addFile');
+        document.getElementById('uploadSharedFile').textContent = this.text(this.editingFile ? 'saveChanges' : 'uploadFile');
+    },
+
+    init(storage) {
+        this.storage = storage;
+        this.videos = this.storage.get('videos', []);
+        this.exams = this.storage.get('exams', []);
+        this.bindVideoControls();
+        this.bindContentManagement();
+        this.bindProfileForm();
+        this.bindChat();
+        this.bindVideoModal();
+        this.bindFileModal();
+        this.populateSubjects();
+        this.renderVideos();
+        this.renderExams();
+        this.renderExamResults();
+        this.updateDashboard();
+        this.setPage('dashboard');
+        this.updateDate();
+        this.syncProfileDisplay();
+        document.getElementById('videoSubjectFilter')?.addEventListener('change', () => this.renderVideos());
+        window.PortalBackend.init(this, storage);
+    },
+
+    setPage(tab) {
+        this.currentTab = tab;
+        const pageTitle = document.getElementById('pageTitle');
+        const pageDescription = document.getElementById('pageDescription');
+        const titleKey = tab === 'dashboard' ? 'dashboard' : tab;
+        const descriptionKeys = {
+            dashboard: 'dashboardIntro',
+            community: 'communityIntro',
+            videos: 'videosIntro',
+            exams: 'examIntro',
+            files: 'filesIntro',
+            profile: 'profileIntro'
+        };
+        if (pageTitle) pageTitle.textContent = this.text(titleKey);
+        if (pageDescription) pageDescription.textContent = this.text(descriptionKeys[tab] || 'dashboardIntro');
+    },
+
+    updateDate() {
+        const node = document.getElementById('todayLabel');
+        if (!node) return;
+        const lang = this.storage.get('language', 'en');
+        node.textContent = new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric'
+        }).format(new Date());
+    },
+
+    populateSubjects() {
+        const subjects = this.storage.get('subjects', DEFAULT_SUBJECTS);
+        ['videoSubjectInput', 'videoSubjectFilter', 'fileSubjectInput'].forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const previous = select.value;
+            const allOption = id === 'videoSubjectFilter';
+            select.replaceChildren();
+            if (allOption) {
+                const option = document.createElement('option');
+                option.value = 'all';
+                option.textContent = this.text('allSubjects');
+                select.appendChild(option);
+            }
+            subjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = this.subjectName(subject);
+                select.appendChild(option);
+            });
+            if ([...select.options].some(option => option.value === previous)) select.value = previous;
+        });
+    },
+
+    createAdminButton(labelKey, handler) {
+        const button = document.createElement('button');
+        button.className = 'btn btn-secondary admin-item-button';
+        button.type = 'button';
+        button.textContent = this.text(labelKey);
+        button.addEventListener('click', handler);
+        return button;
+    },
+
+    selectSubject(select, subject) {
+        if (![...select.options].some(option => option.value === subject)) {
+            const option = document.createElement('option');
+            option.value = subject;
+            option.textContent = subject;
+            select.appendChild(option);
+        }
+        select.value = subject;
+    },
+
+    bindVideoControls() {
+        const form = document.getElementById('videoAdminForm');
+        document.getElementById('showVideoForm')?.addEventListener('click', () => {
+            this.clearVideoForm();
+            form?.classList.remove('hidden');
+            document.getElementById('videoTitleInput')?.focus();
+        });
+        document.getElementById('cancelVideoButton')?.addEventListener('click', () => {
+            form?.classList.add('hidden');
+            this.clearVideoForm();
+        });
+        document.getElementById('saveVideoButton')?.addEventListener('click', () => this.saveVideo());
+        document.getElementById('videoUrlInput')?.addEventListener('change', () => this.loadVideoTitle());
+        document.getElementById('videoUrlInput')?.addEventListener('keydown', event => {
+            if (event.key === 'Enter') this.saveVideo();
+        });
+    },
+
+    bindContentManagement() {
+        const examForm = document.getElementById('examAdminForm');
+        const fileForm = document.getElementById('fileAdminForm');
+        document.getElementById('showExamForm')?.addEventListener('click', () => this.openNewExamForm());
+        document.getElementById('cancelExamButton')?.addEventListener('click', () => this.closeExamForm());
+        document.getElementById('publishExamButton')?.addEventListener('click', () => this.publishExam());
+        document.getElementById('examJsonInput')?.addEventListener('change', async event => {
+            const file = event.target.files[0];
+            if (file) document.getElementById('examJsonText').value = await file.text();
+        });
+        document.getElementById('showFileForm')?.addEventListener('click', () => this.openNewFileForm());
+        document.getElementById('cancelFileForm')?.addEventListener('click', () => this.closeFileForm());
+        document.getElementById('uploadSharedFile')?.addEventListener('click', () => this.uploadSharedFile());
+    },
+
+    openNewExamForm() {
+        this.editingExamId = null;
+        document.getElementById('examAdminForm').classList.remove('hidden');
+        document.getElementById('examJsonInput').value = '';
+        document.getElementById('examJsonText').value = '';
+        document.getElementById('examDueDateInput').value = '';
+        document.getElementById('publishExamButton').textContent = this.text('publishExam');
+        document.getElementById('examFormMessage').textContent = '';
+    },
+
+    closeExamForm() {
+        this.editingExamId = null;
+        document.getElementById('examAdminForm').classList.add('hidden');
+        document.getElementById('examJsonInput').value = '';
+        document.getElementById('examJsonText').value = '';
+        document.getElementById('examDueDateInput').value = '';
+        document.getElementById('publishExamButton').textContent = this.text('publishExam');
+    },
+
+    openNewFileForm() {
+        this.editingFile = null;
+        document.getElementById('fileAdminForm').classList.remove('hidden');
+        document.getElementById('fileTitleInput').value = '';
+        document.getElementById('fileSubjectInput').selectedIndex = 0;
+        document.getElementById('sharedFileInput').value = '';
+        document.getElementById('uploadSharedFile').textContent = this.text('uploadFile');
+        document.getElementById('fileFormMessage').textContent = '';
+    },
+
+    closeFileForm() {
+        this.editingFile = null;
+        document.getElementById('fileAdminForm').classList.add('hidden');
+        document.getElementById('fileTitleInput').value = '';
+        document.getElementById('sharedFileInput').value = '';
+        document.getElementById('uploadSharedFile').textContent = this.text('uploadFile');
+    },
+
+    async publishExam() {
+        const message = document.getElementById('examFormMessage');
+        const file = document.getElementById('examJsonInput').files[0];
+        const jsonText = document.getElementById('examJsonText').value.trim() || (file ? await file.text() : '');
+        if (!PortalBackend.configured || !PortalBackend.isAdmin()) {
+            message.textContent = this.text('ownerOnly');
+            return;
+        }
+        if (!jsonText) {
+            message.textContent = this.text('chooseExamFile');
+            return;
+        }
+        try {
+            const exam = JSON.parse(jsonText);
+            if (!window.quizEngine.isValidQuiz(exam)) {
+                throw new Error(this.text('invalidExamFile'));
+            }
+            const dueValue = document.getElementById('examDueDateInput').value;
+            exam.subject = exam.subject || document.getElementById('quizSubject').value || DEFAULT_SUBJECTS[0];
+            exam.dueDate = dueValue ? new Date(dueValue).toISOString() : null;
+            const editing = Boolean(this.editingExamId);
+            const published = editing
+                ? await PortalBackend.updateExam(this.editingExamId, exam)
+                : await PortalBackend.publishExam(exam);
+            this.exams = [published, ...this.exams.filter(existing => existing.id !== published.id)];
+            this.renderExams();
+            this.updateDashboard();
+            this.closeExamForm();
+            message.textContent = this.text(editing ? 'examUpdated' : 'examPublished');
+        } catch (error) {
+            message.textContent = error.message;
+            console.error('Exam publishing failed:', error);
+        }
+    },
+
+    editExam(exam) {
+        this.editingExamId = exam.id;
+        document.getElementById('examAdminForm').classList.remove('hidden');
+        document.getElementById('examJsonInput').value = '';
+        document.getElementById('examJsonText').value = JSON.stringify({
+            title: exam.title,
+            description: exam.description || '',
+            questions: exam.questions
+        }, null, 2);
+        document.getElementById('examDueDateInput').value = exam.dueDate
+            ? new Date(new Date(exam.dueDate).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+            : '';
+        const subjectSelect = document.getElementById('quizSubject');
+        this.selectSubject(subjectSelect, exam.subject || DEFAULT_SUBJECTS[0]);
+        document.getElementById('publishExamButton').textContent = this.text('saveChanges');
+        document.getElementById('examFormMessage').textContent = '';
+        document.getElementById('examJsonText').focus();
+    },
+
+    async deleteExam(exam) {
+        if (!window.confirm(this.text('confirmDeleteExam'))) return;
+        try {
+            await PortalBackend.deleteExam(exam.id);
+            this.exams = this.exams.filter(item => item.id !== exam.id);
+            this.renderExams();
+            this.updateDashboard();
+        } catch (error) {
+            this.showBackendError(error.message);
+            console.error('Exam deletion failed:', error);
+        }
+    },
+
+    async uploadSharedFile() {
+        const message = document.getElementById('fileFormMessage');
+        const file = document.getElementById('sharedFileInput').files[0];
+        const title = document.getElementById('fileTitleInput').value.trim();
+        const editing = this.editingFile;
+        const allowedTypes = new Set([
+            'application/pdf', 'text/plain', 'text/markdown',
+            'image/png', 'image/jpeg', 'image/gif'
+        ]);
+        if (!PortalBackend.configured || !PortalBackend.isAdmin()) {
+            message.textContent = this.text('ownerOnly');
+            return;
+        }
+        if ((!file && !editing) || !title) {
+            message.textContent = this.text('fileDetailsRequired');
+            return;
+        }
+        if (file && !allowedTypes.has(file.type)) {
+            message.textContent = this.text('unsupportedFileType');
+            return;
+        }
+        const button = document.getElementById('uploadSharedFile');
+        button.disabled = true;
+        try {
+            const subject = document.getElementById('fileSubjectInput').value;
+            if (editing) {
+                await PortalBackend.updateFile(editing.id, { file, subject, title });
+            } else {
+                await PortalBackend.uploadFile(file, subject, title);
+            }
+            this.closeFileForm();
+            message.textContent = this.text(editing ? 'fileUpdated' : 'fileUploaded');
+        } catch (error) {
+            message.textContent = error.message;
+            console.error('File upload failed:', error);
+        } finally {
+            button.disabled = false;
+        }
+    },
+
+    editFile(file) {
+        this.editingFile = file;
+        document.getElementById('fileAdminForm').classList.remove('hidden');
+        document.getElementById('fileTitleInput').value = file.name;
+        this.selectSubject(document.getElementById('fileSubjectInput'), file.subject || DEFAULT_SUBJECTS[0]);
+        document.getElementById('sharedFileInput').value = '';
+        document.getElementById('uploadSharedFile').textContent = this.text('saveChanges');
+        document.getElementById('fileFormMessage').textContent = '';
+        document.getElementById('fileTitleInput').focus();
+    },
+
+    async deleteFile(file) {
+        if (!window.confirm(this.text('confirmDeleteFile'))) return;
+        try {
+            await PortalBackend.deleteFile(file.id);
+        } catch (error) {
+            this.showBackendError(error.message);
+            console.error('File deletion failed:', error);
+        }
+    },
+
+    youtubeId(value) {
+        try {
+            const url = new URL(value);
+            if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be'].includes(url.hostname)) return null;
+            const id = url.hostname.includes('youtu.be')
+                ? url.pathname.slice(1).split('/')[0]
+                : url.searchParams.get('v') || url.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/)?.[1];
+            return id && /^[\w-]{11}$/.test(id) ? id : null;
+        } catch {
+            return null;
+        }
+    },
+
+    async fetchYouTubeTitle(videoId) {
+        const videoUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+        const endpoint = new URL('https://www.youtube.com/oembed');
+        endpoint.searchParams.set('url', videoUrl);
+        endpoint.searchParams.set('format', 'json');
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
+        try {
+            const response = await fetch(endpoint, { signal: controller.signal });
+            if (!response.ok) throw new Error(`YouTube title lookup failed (${response.status}).`);
+            const metadata = await response.json();
+            const title = typeof metadata.title === 'string' ? metadata.title.trim() : '';
+            if (!title) throw new Error('YouTube did not return a video title.');
+            return title;
+        } finally {
+            window.clearTimeout(timeout);
+        }
+    },
+
+    async loadVideoTitle() {
+        const url = document.getElementById('videoUrlInput').value.trim();
+        const videoId = this.youtubeId(url);
+        const titleInput = document.getElementById('videoTitleInput');
+        const message = document.getElementById('videoFormMessage');
+        titleInput.value = '';
+        if (!videoId) return;
+        message.textContent = this.text('fetchingVideoTitle');
+        try {
+            titleInput.value = await this.fetchYouTubeTitle(videoId);
+            message.textContent = this.text('videoTitleLoaded');
+        } catch (error) {
+            message.textContent = this.text('videoTitleUnavailable');
+            console.error('YouTube title lookup failed:', error);
+        }
+    },
+
+    async saveVideo() {
+        const url = document.getElementById('videoUrlInput').value.trim();
+        const videoId = this.youtubeId(url);
+        const message = document.getElementById('videoFormMessage');
+        if (!videoId) {
+            message.textContent = this.text('invalidYoutube');
+            return;
+        }
+        if (!PortalBackend.configured || !PortalBackend.isAdmin()) {
+            message.textContent = this.text('ownerOnly');
+            return;
+        }
+        const saveButton = document.getElementById('saveVideoButton');
+        saveButton.disabled = true;
+        const editing = Boolean(this.editingVideoId);
+        let title;
+        try {
+            message.textContent = this.text('fetchingVideoTitle');
+            title = await this.fetchYouTubeTitle(videoId);
+        } catch (error) {
+            message.textContent = this.text('videoTitleUnavailable');
+            console.error('YouTube title lookup failed:', error);
+            saveButton.disabled = false;
+            return;
+        }
+        document.getElementById('videoTitleInput').value = title;
+        const video = {
+            title,
+            videoId,
+            subject: document.getElementById('videoSubjectInput').value || DEFAULT_SUBJECTS[0],
+            addedAt: new Date().toISOString()
+        };
+        let record;
+        try {
+            record = editing
+                ? await PortalBackend.updateVideo(this.editingVideoId, video)
+                : await PortalBackend.publishVideo(video);
+        } catch (error) {
+            message.textContent = error.message;
+            console.error(editing ? 'Video update failed:' : 'Video publishing failed:', error);
+            saveButton.disabled = false;
+            return;
+        } finally {
+            saveButton.disabled = false;
+        }
+        this.videos = editing
+            ? this.videos.map(item => item.id === record.id ? record : item)
+            : [record, ...this.videos];
+        this.renderVideos();
+        this.updateDashboard();
+        this.clearVideoForm();
+        message.textContent = this.text(editing ? 'videoUpdated' : 'videoPublished');
+    },
+
+    editVideo(video) {
+        this.editingVideoId = video.id;
+        document.getElementById('videoAdminForm').classList.remove('hidden');
+        document.getElementById('videoTitleInput').value = video.title;
+        document.getElementById('videoUrlInput').value = `https://www.youtube.com/watch?v=${video.videoId}`;
+        this.selectSubject(document.getElementById('videoSubjectInput'), video.subject || DEFAULT_SUBJECTS[0]);
+        document.getElementById('saveVideoButton').textContent = this.text('saveChanges');
+        document.getElementById('videoFormMessage').textContent = '';
+        document.getElementById('videoTitleInput').focus();
+    },
+
+    async deleteVideo(video) {
+        if (!window.confirm(this.text('confirmDeleteVideo'))) return;
+        try {
+            await PortalBackend.deleteVideo(video.id);
+            this.videos = this.videos.filter(item => item.id !== video.id);
+            this.renderVideos();
+            this.updateDashboard();
+        } catch (error) {
+            this.showBackendError(error.message);
+            console.error('Video deletion failed:', error);
+        }
+    },
+
+    clearVideoForm() {
+        this.editingVideoId = null;
+        document.getElementById('videoTitleInput').value = '';
+        document.getElementById('videoUrlInput').value = '';
+        document.getElementById('videoFormMessage').textContent = '';
+        document.getElementById('saveVideoButton').textContent = this.text('saveVideo');
+    },
+
+    renderVideos() {
+        const grid = document.getElementById('videoGrid');
+        const filter = document.getElementById('videoSubjectFilter')?.value || 'all';
+        const list = this.videos.filter(video => filter === 'all' || video.subject === filter);
+        if (!grid) return;
+        grid.replaceChildren();
+        document.getElementById('videoCount').textContent = String(list.length);
+        if (!list.length) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = `<div class="empty-state-icon">▷</div><h3>${this.escapeHtml(this.text('noVideosYet'))}</h3><p>${this.escapeHtml(this.text('videosSetupText'))}</p>`;
+            grid.appendChild(emptyState);
+            return;
+        }
+        list.forEach(video => {
+            const article = document.createElement('article');
+            article.className = 'video-card';
+            const button = document.createElement('button');
+            button.className = 'video-card-button';
+            button.type = 'button';
+            button.setAttribute('aria-label', `${this.text('videos')}: ${video.title}`);
+            const thumbnail = document.createElement('div');
+            thumbnail.className = 'video-thumbnail';
+            const image = document.createElement('img');
+            image.src = `https://img.youtube.com/vi/${encodeURIComponent(video.videoId)}/hqdefault.jpg`;
+            image.alt = '';
+            image.loading = 'lazy';
+            const play = document.createElement('span');
+            play.className = 'video-play';
+            play.textContent = '▶';
+            thumbnail.append(image, play);
+            const info = document.createElement('div');
+            info.className = 'video-card-info';
+            const title = document.createElement('strong');
+            title.textContent = video.title;
+            const subject = document.createElement('span');
+            subject.textContent = this.subjectName(video.subject || DEFAULT_SUBJECTS[0]);
+            info.append(title, subject);
+            button.append(thumbnail, info);
+            button.addEventListener('click', () => this.openVideo(video));
+            article.appendChild(button);
+            if (PortalBackend.configured && PortalBackend.isAdmin()) {
+                const adminActions = document.createElement('div');
+                adminActions.className = 'video-admin-actions';
+                adminActions.append(
+                    this.createAdminButton('edit', () => this.editVideo(video)),
+                    this.createAdminButton('delete', () => this.deleteVideo(video))
+                );
+                article.appendChild(adminActions);
+            }
+            grid.appendChild(article);
+        });
+    },
+
+    openVideo(video) {
+        const modal = document.getElementById('videoModal');
+        const player = document.getElementById('videoPlayer');
+        const origin = ['http:', 'https:'].includes(window.location.protocol)
+            ? `&origin=${encodeURIComponent(window.location.origin)}`
+            : '';
+        player.src = `https://www.youtube.com/embed/${encodeURIComponent(video.videoId)}?autoplay=1${origin}`;
+        document.getElementById('videoModalTitle').textContent = video.title;
+        const youtubeLink = document.getElementById('watchOnYoutube');
+        youtubeLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
+        modal.classList.remove('hidden');
+        modal.querySelector('.video-modal-close').focus();
+        const watched = this.storage.get('watchedVideos', []);
+        if (!watched.includes(video.id)) {
+            watched.push(video.id);
+            this.storage.set('watchedVideos', watched);
+            this.updateDashboard();
+        }
+    },
+
+    bindVideoModal() {
+        const modal = document.getElementById('videoModal');
+        const close = () => {
+            modal.classList.add('hidden');
+            document.getElementById('videoPlayer').src = '';
+        };
+        document.getElementById('closeVideoModal')?.addEventListener('click', close);
+        modal?.addEventListener('click', event => {
+            if (event.target === modal) close();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !modal.classList.contains('hidden')) close();
+        });
+    },
+
+    bindFileModal() {
+        const modal = document.getElementById('fileViewerModal');
+        const close = () => {
+            modal.classList.add('hidden');
+            document.getElementById('fileViewer').src = 'about:blank';
+        };
+        document.getElementById('closeFileViewer')?.addEventListener('click', close);
+        modal?.addEventListener('click', event => {
+            if (event.target === modal) close();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !modal.classList.contains('hidden')) close();
+        });
+    },
+
+    addExam(quiz, subject) {
+        if (!quiz || !Array.isArray(quiz.questions) || !quiz.questions.length) return;
+        const exams = this.exams;
+        const existing = exams.find(exam => exam.title === quiz.title);
+        const record = {
+            id: existing?.id || `exam-${Date.now()}`,
+            title: quiz.title || this.text('exams'),
+            description: quiz.description || '',
+            subject: quiz.subject || subject || DEFAULT_SUBJECTS[0],
+            dueDate: quiz.dueDate || quiz.scheduledAt || null,
+            questions: quiz.questions
+        };
+        const nextExams = existing
+            ? exams.map(exam => exam.id === existing.id ? record : exam)
+            : [record, ...exams];
+        this.exams = nextExams;
+        this.storage.set('exams', nextExams);
+        this.renderExams();
+        this.renderExamResults();
+        this.updateDashboard();
+    },
+
+    renderExams() {
+        const container = document.getElementById('examCatalog');
+        if (!container) return;
+        const exams = this.exams;
+        container.replaceChildren();
+        if (!exams.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text('noExams');
+            container.appendChild(empty);
+            return;
+        }
+        exams.forEach(exam => {
+            const card = document.createElement('article');
+            card.className = 'exam-card';
+            const info = document.createElement('div');
+            const heading = document.createElement('h3');
+            heading.textContent = exam.title;
+            const description = document.createElement('p');
+            description.textContent = exam.description || this.subjectName(exam.subject || DEFAULT_SUBJECTS[0]);
+            const count = document.createElement('small');
+            count.textContent = `${exam.questions.length} ${this.text('questions')}`;
+            info.append(heading, description, count);
+            const start = document.createElement('button');
+            start.className = 'btn btn-primary';
+            start.type = 'button';
+            start.textContent = this.text('startExam');
+            start.addEventListener('click', () => {
+                if (!window.quizEngine) return;
+                window.quizEngine.currentQuiz = exam;
+                document.getElementById('quizSubject').value = exam.subject || DEFAULT_SUBJECTS[0];
+                window.quizEngine.showNameModal(exam);
+            });
+            card.append(info, start);
+            if (PortalBackend.configured && PortalBackend.isAdmin()) {
+                const adminActions = document.createElement('div');
+                adminActions.className = 'exam-admin-actions';
+                adminActions.append(
+                    this.createAdminButton('edit', () => this.editExam(exam)),
+                    this.createAdminButton('delete', () => this.deleteExam(exam))
+                );
+                card.appendChild(adminActions);
+            }
+            container.appendChild(card);
+        });
+    },
+
+    renderExamResults() {
+        const container = document.getElementById('examResultsList');
+        if (!container) return;
+        const results = [...this.storage.get('quizResults', [])].reverse();
+        container.replaceChildren();
+        if (!results.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text('noResultsYet');
+            container.appendChild(empty);
+            return;
+        }
+        results.forEach(result => {
+            const row = document.createElement('div');
+            row.className = 'exam-result-row';
+            const title = document.createElement('strong');
+            title.textContent = result.quizTitle || this.text('exams');
+            const date = document.createElement('span');
+            const parsedDate = new Date(result.date);
+            date.textContent = Number.isNaN(parsedDate.getTime())
+                ? ''
+                : new Intl.DateTimeFormat(
+                    this.storage.get('language', 'en') === 'ar' ? 'ar' : 'en',
+                    { dateStyle: 'medium' }
+                ).format(parsedDate);
+            const score = document.createElement('b');
+            score.textContent = `${result.score}%`;
+            row.append(title, date, score);
+            container.appendChild(row);
+        });
+    },
+
+    updateDashboard() {
+        const exams = this.storage.get('quizResults', []);
+        const watched = this.storage.get('watchedVideos', []);
+        const downloaded = this.storage.get('downloadedFiles', []);
+        document.getElementById('dashboardExams').textContent = String(exams.length);
+        document.getElementById('dashboardVideos').textContent = String(watched.length);
+        document.getElementById('dashboardFiles').textContent = String(downloaded.length);
+        const latestVideos = [...this.videos].sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt)).slice(0, 3);
+        this.renderCompactList('dashboardNewVideos', latestVideos, video => {
+            const text = `${video.title} · ${video.subject || DEFAULT_SUBJECTS[0]}`;
+            return { text, tab: 'videos' };
+        });
+        const upcoming = this.exams
+            .filter(exam => exam.dueDate && Date.parse(exam.dueDate) > Date.now())
+            .sort((a, b) => Date.parse(a.dueDate) - Date.parse(b.dueDate))
+            .slice(0, 3);
+        this.renderCompactList('upcomingExams', upcoming, exam => ({
+            text: `${exam.title} · ${exam.questions.length} ${this.text('questions')}`,
+            tab: 'exams'
+        }));
+        this.updateDate();
+    },
+
+    renderCompactList(id, entries, describe) {
+        const container = document.getElementById(id);
+        if (!container) return;
+        container.replaceChildren();
+        if (!entries.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text(id === 'upcomingExams' ? 'noUpcomingExams' : 'noVideosYet');
+            container.appendChild(empty);
+            return;
+        }
+        entries.forEach(entry => {
+            const row = document.createElement('button');
+            row.className = 'compact-list-item';
+            row.type = 'button';
+            row.textContent = describe(entry).text;
+            row.addEventListener('click', () => document.querySelector(`.tab-btn[data-tab="${describe(entry).tab}"]`)?.click());
+            container.appendChild(row);
+        });
+    },
+
+    bindProfileForm() {
+        document.getElementById('authForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const message = document.getElementById('authMessage');
+            if (!PortalBackend.configured) {
+                message.textContent = this.text('accountSetupRequired');
+                return;
+            }
+            const name = document.getElementById('profileName').value.trim();
+            const email = document.getElementById('profileEmailInput').value.trim();
+            const password = document.getElementById('profilePassword').value;
+            const submit = document.getElementById('authSubmit');
+            submit.disabled = true;
+            message.textContent = '';
+            try {
+                if (this.authMode === 'signup') {
+                    const { session } = await PortalBackend.signUp(name, email, password);
+                    document.getElementById('profilePassword').value = '';
+                    if (session) {
+                        message.textContent = this.text('accountCreated');
+                    } else {
+                        this.pendingConfirmationEmail = email;
+                        document.getElementById('authForm').classList.add('hidden');
+                        document.getElementById('emailConfirmationNotice').classList.remove('hidden');
+                        document.getElementById('emailConfirmationMessage').textContent = this.text('confirmationSent');
+                    }
+                } else {
+                    await PortalBackend.signIn(email, password);
+                    message.textContent = this.text('signInSuccess');
+                    document.getElementById('profilePassword').value = '';
+                }
+            } catch (error) {
+                message.textContent = this.authErrorMessage(error);
+                console.error('Account authentication failed:', error);
+            } finally {
+                submit.disabled = false;
+            }
+        });
+        document.getElementById('resendEmailConfirmation')?.addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const message = document.getElementById('emailConfirmationMessage');
+            if (!this.pendingConfirmationEmail) return;
+            button.disabled = true;
+            try {
+                await PortalBackend.resendSignUpConfirmation(this.pendingConfirmationEmail);
+                message.textContent = this.text('confirmationResent');
+            } catch (error) {
+                message.textContent = this.authErrorMessage(error);
+                console.error('Resending confirmation email failed:', error);
+            } finally {
+                button.disabled = false;
+            }
+        });
+        document.getElementById('authModeToggle')?.addEventListener('click', () => {
+            this.pendingConfirmationEmail = '';
+            document.getElementById('emailConfirmationNotice').classList.add('hidden');
+            document.getElementById('authForm').classList.remove('hidden');
+            this.authMode = this.authMode === 'signup' ? 'signin' : 'signup';
+            this.refreshDynamicLabels();
+            document.querySelector('label[for="profileName"]')?.classList.toggle('hidden', this.authMode === 'signin');
+            document.getElementById('profileName').classList.toggle('hidden', this.authMode === 'signin');
+            document.getElementById('profileName').required = this.authMode === 'signup';
+            document.getElementById('profilePassword').autocomplete = this.authMode === 'signup' ? 'new-password' : 'current-password';
+        });
+        document.getElementById('profileEditForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const message = document.getElementById('profileEditMessage');
+            try {
+                await PortalBackend.updateProfile({
+                    name: document.getElementById('profileEditName').value.trim(),
+                    email: document.getElementById('profileEditEmail').value.trim(),
+                    password: document.getElementById('profileNewPassword').value
+                });
+                document.getElementById('profileNewPassword').value = '';
+                message.textContent = this.text('profileUpdated');
+            } catch (error) {
+                message.textContent = this.authErrorMessage(error);
+                console.error('Profile update failed:', error);
+            }
+        });
+        document.getElementById('signOutButton')?.addEventListener('click', async () => {
+            try {
+                await PortalBackend.signOut();
+            } catch (error) {
+                this.showBackendError(error.message);
+                console.error('Sign-out failed:', error);
+            }
+        });
+    },
+
+    bindChat() {
+        document.getElementById('chatForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const input = document.getElementById('chatInput');
+            const body = input.value.trim();
+            if (!body || !PortalBackend.user) return;
+            const button = event.currentTarget.querySelector('button');
+            button.disabled = true;
+            try {
+                await PortalBackend.sendChat(body);
+                input.value = '';
+            } catch (error) {
+                this.showBackendError(error.message);
+                console.error('Sending chat message failed:', error);
+            } finally {
+                button.disabled = !PortalBackend.user;
+            }
+        });
+    },
+
+    authErrorMessage(error) {
+        const code = error?.code || error?.message || '';
+        if (/rate.?limit|too many requests/i.test(code)) return this.text('emailRateLimit');
+        if (/invalid login credentials/i.test(code)) return this.text('invalidCredentials');
+        if (/already registered|user already exists/i.test(code)) return this.text('accountExists');
+        if (/password should be at least|password.*characters/i.test(code)) return this.text('passwordTooShort');
+        return error?.message || this.text('unexpectedError');
+    },
+
+    onBackendStatus(configured) {
+        document.getElementById('authSetupNotice').classList.toggle('hidden', configured);
+        document.getElementById('chatConnection').textContent =
+            this.text(configured ? 'signInToChat' : 'setupRequired');
+        document.querySelector('.chat-note').textContent =
+            this.text(configured ? 'signInToChatNote' : 'communitySetupNote');
+        document.getElementById('videoLocalNotice').textContent = this.text('videoLocalNotice');
+        document.getElementById('authMessage').textContent =
+            configured ? '' : this.text('backendSetupNeeded');
+        const canManage = configured && PortalBackend.isAdmin();
+        document.getElementById('showVideoForm').classList.toggle('hidden', !canManage);
+        document.getElementById('showExamForm').classList.toggle('hidden', !canManage);
+        document.getElementById('showFileForm').classList.toggle('hidden', !canManage);
+        document.getElementById('videoAdminForm').classList.add('hidden');
+    },
+
+    onSessionChanged(user, profile, isAdmin) {
+        if (user) this.pendingConfirmationEmail = '';
+        const name = profile?.display_name || user?.email?.split('@')[0] || this.text('guest');
+        const initial = name.trim().charAt(0).toUpperCase() || 'L';
+        document.getElementById('profileDisplayName').textContent = name;
+        document.getElementById('profileEmail').textContent = user?.email || this.text('notSignedIn');
+        document.getElementById('profileAvatar').textContent = initial;
+        document.getElementById('sidebarUserName').textContent = name;
+        document.getElementById('sidebarAvatar').textContent = initial;
+        document.getElementById('sidebarAccountState').textContent = this.text(
+            user ? 'cloudSynced' : (PortalBackend.configured ? 'signInToSync' : 'localProgress')
+        );
+        document.querySelector('#syncStatus > span:last-child').textContent = this.text(
+            user ? 'cloudSyncOn' : (PortalBackend.configured ? 'signInToSync' : 'deviceOnly')
+        );
+        document.getElementById('authForm').classList.toggle('hidden', Boolean(user));
+        document.getElementById('emailConfirmationNotice').classList.toggle('hidden', Boolean(user) || !this.pendingConfirmationEmail);
+        document.getElementById('profileEditForm').classList.toggle('hidden', !user);
+        document.getElementById('authModeToggle').classList.toggle('hidden', Boolean(user));
+        document.getElementById('signOutButton').classList.toggle('hidden', !user);
+        document.getElementById('authHeading').textContent =
+            user ? this.text('accountSettings') : this.text(this.authMode === 'signup' ? 'createAccount' : 'signIn');
+        document.getElementById('authSetupNotice').classList.toggle('hidden', PortalBackend.configured);
+        if (user) {
+            document.getElementById('profileEditName').value = profile?.display_name || '';
+            document.getElementById('profileEditEmail').value = user.email || '';
+        }
+        document.getElementById('chatInput').disabled = !user;
+        document.querySelector('#chatForm button').disabled = !user;
+        document.getElementById('chatConnection').textContent = this.text(user ? 'connected' : 'signInToChat');
+        document.querySelector('.chat-note').textContent = this.text(
+            user ? 'communityRespect' : (PortalBackend.configured ? 'signInToChatNote' : 'communitySetupNote')
+        );
+        document.getElementById('showExamForm').classList.toggle('hidden', !isAdmin);
+        document.getElementById('showFileForm').classList.toggle('hidden', !isAdmin);
+        document.getElementById('showVideoForm').classList.toggle('hidden', !isAdmin);
+        document.getElementById('videoLocalNotice').classList.toggle('hidden', PortalBackend.configured);
+        if (PortalBackend.configured && !user) {
+            this.videos = [];
+            this.exams = [];
+            this.renderVideos();
+            this.renderExams();
+        }
+        if (!isAdmin) {
+            document.getElementById('videoAdminForm').classList.add('hidden');
+            document.getElementById('examAdminForm').classList.add('hidden');
+            document.getElementById('fileAdminForm').classList.add('hidden');
+        }
+        this.refreshDynamicLabels();
+    },
+
+    showBackendError(message) {
+        const authMessage = document.getElementById('authMessage');
+        const chatNote = document.querySelector('.chat-note');
+        if (authMessage) authMessage.textContent = message;
+        if (chatNote) chatNote.textContent = message;
+    },
+
+    refreshAfterSync() {
+        this.renderExamResults();
+        this.updateDashboard();
+        this.syncProfileDisplay();
+        const language = this.storage.get('language', 'en');
+        updateLanguageUI(language);
+    },
+
+    setSharedVideos(videos) {
+        this.videos = videos;
+        this.renderVideos();
+        this.updateDashboard();
+    },
+
+    setSharedExams(exams) {
+        this.exams = exams;
+        this.renderExams();
+        this.updateDashboard();
+    },
+
+    setSharedFiles(files) {
+        FilesManager.files = files.reduce((grouped, file) => {
+            (grouped[file.subject] ||= []).push(file);
+            return grouped;
+        }, {});
+        FilesManager.render();
+    },
+
+    renderChatMessages(messages) {
+        const container = document.getElementById('chatMessages');
+        container.replaceChildren();
+        if (!messages.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty-state';
+            const heading = document.createElement('h3');
+            heading.textContent = this.text('communityReadyTitle');
+            const description = document.createElement('p');
+            description.textContent = this.text('noChatMessages');
+            empty.append(heading, description);
+            container.appendChild(empty);
+        } else {
+            messages.forEach(message => {
+                const row = document.createElement('article');
+                row.className = `chat-message${message.user_id === PortalBackend.user?.id ? ' own-message' : ''}`;
+                const author = document.createElement('strong');
+                const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
+                author.textContent = profile?.display_name || this.text('guest');
+                const time = document.createElement('time');
+                time.dateTime = message.created_at;
+                time.textContent = new Intl.DateTimeFormat(
+                    this.storage.get('language', 'en') === 'ar' ? 'ar' : 'en',
+                    { hour: 'numeric', minute: '2-digit' }
+                ).format(new Date(message.created_at));
+                const body = document.createElement('p');
+                body.textContent = message.body;
+                row.append(author, time, body);
+                container.appendChild(row);
+            });
+        }
+        container.scrollTop = container.scrollHeight;
+        this.renderNotifications(messages);
+    },
+
+    renderNotifications(messages) {
+        const container = document.getElementById('dashboardNotifications');
+        container.replaceChildren();
+        const recent = [...messages].reverse().slice(0, 3);
+        if (!recent.length) {
+            container.className = 'empty-inline';
+            container.textContent = this.text('noNotifications');
+            return;
+        }
+        container.className = 'notification-list';
+        recent.forEach(message => {
+            const row = document.createElement('p');
+            const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
+            row.textContent = `${profile?.display_name || this.text('guest')}: ${message.body}`;
+            container.appendChild(row);
+        });
+    },
+
+    syncProfileDisplay() {
+        const name = this.storage.get('profileName', '');
+        if (!name) return;
+        document.getElementById('sidebarUserName').textContent = name;
+        document.getElementById('sidebarAvatar').textContent = name.trim().charAt(0).toUpperCase();
+        document.getElementById('profileDisplayName').textContent = name;
+        document.getElementById('profileAvatar').textContent = name.trim().charAt(0).toUpperCase();
+        document.getElementById('profileName').value = name;
+    },
+
+    escapeHtml(value) {
+        const element = document.createElement('span');
+        element.textContent = value;
+        return element.innerHTML;
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize storage and managers in correct order
     const storage = new StorageManager('studyDashboard');
     const subjectsManager = new SubjectsManager(storage);
+    window.subjectsManager = subjectsManager;
 
     // --- Subject dropdown population ---
     function updateSubjectDropdowns() {
@@ -1959,41 +3934,8 @@ document.addEventListener('DOMContentLoaded', () => {
             subjects.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s;
-                opt.textContent = s;
+                opt.textContent = PortalUI.subjectName(s);
                 quizSubject.appendChild(opt);
-            });
-        }
-        // Note editor
-        const noteSubject = document.getElementById('noteSubject');
-        if (noteSubject) {
-            noteSubject.innerHTML = '';
-            subjects.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                noteSubject.appendChild(opt);
-            });
-        }
-        // Notes filter
-        const notesFilter = document.getElementById('notesFilterSubject');
-        if (notesFilter) {
-            notesFilter.innerHTML = '<option value="all">All Subjects</option>';
-            subjects.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                notesFilter.appendChild(opt);
-            });
-        }
-        // Progress filter
-        const progressFilter = document.getElementById('progressFilterSubject');
-        if (progressFilter) {
-            progressFilter.innerHTML = '<option value="all">All Subjects</option>';
-            subjects.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                progressFilter.appendChild(opt);
             });
         }
     }
@@ -2008,65 +3950,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const langSelect = document.getElementById('languageSelect');
     if (langSelect) langSelect.value = lang;
 
-    // Initialize all modules
-    const timer = new PomodoroTimer(storage);
-    StreakCounter.init(storage);
     const quiz = new QuizEngine(storage);
-    const notes = new NotesManager(storage);
-    StudyTracker.init(storage);
-    UIController.init();
-    FocusMode.init();
-    ProgressAnalytics.init(storage);
-    SubjectsDashboardAnalytics.init(storage, subjectsManager);
-    
-    // Initialize new modules
-    AdminAuth.init(storage);
-    LecturesManager.init(storage);
+    window.quizEngine = quiz;
+    UIController.init(storage);
     FilesManager.init(storage);
+    PortalUI.init(storage);
 
     // Now update language UI
     updateLanguageUI(lang);
+    updateSubjectDropdowns();
+    subjectsManager.renderSubjectsList();
     if (langSelect) {
         langSelect.addEventListener('change', (e) => {
             const selectedLang = e.target.value;
             storage.set('language', selectedLang);
             updateLanguageUI(selectedLang);
+            updateSubjectDropdowns();
+            subjectsManager.renderSubjectsList();
         });
     }
 
-    // Update UI displays
-    StudyTracker.updateTotalTime();
-    StreakCounter.updateDisplay();
-
-    // Periodic updates
-    setInterval(() => {
-        StudyTracker.updateTotalTime();
-    }, 30000); // Update every 30 seconds
 });
-// ============================================================================
-// الساهر: كود إرسال النتائج للـ Blob (آمن تماماً ولا يكسر الملف)
-// ============================================================================
-setInterval(() => {
-    // نبحث عن زر "إنهاء" أو "إغلاق" الذي يظهر في نهاية الكويز
-    const closeBtn = document.querySelector('#quiz-container button');
-    
-    // إذا ظهرت النتيجة ولم يتم حفظها بعد
-    if (closeBtn && closeBtn.innerText.includes('إغلاق') && !closeBtn.getAttribute('data-sent')) {
-        const studentName = document.getElementById('studentNameInput')?.value || "طالب_مجهول";
-        const scoreElement = document.querySelector('#quiz-container span.text-purple-600');
-        const finalScore = scoreElement ? scoreElement.innerText.replace('%', '') : "0";
-
-        fetch('/api/upload?action=saveResult', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: studentName,
-                quizTitle: "اختبار لومـا",
-                score: finalScore
-            })
-        }).then(() => {
-            console.log("✅ Result saved!");
-            closeBtn.setAttribute('data-sent', 'true'); // منع التكرار
-        }).catch(err => console.error("❌ Save failed", err));
-    }
-}, 2000);

@@ -1,12 +1,13 @@
 // Service Worker for offline functionality and caching strategy
 // Cache version auto-updates daily to bust old caches
 
-const CACHE_VERSION = 'luma-v' + new Date().toISOString().split('T')[0]; // Changes daily
+const CACHE_VERSION = 'luma-portal-v18-' + new Date().toISOString().split('T')[0];
 const CACHE_URLS = [
   '/',
   '/index.html',
   '/style.css',
   '/script.js',
+  '/portal-backend.js',
   '/Pic.png',
   '/manifest.json'
 ];
@@ -54,9 +55,15 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const requestUrl = new URL(request.url);
 
   // Skip cross-origin requests
-  if (!request.url.startsWith(self.location.origin)) {
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (request.method === 'GET' && requestUrl.pathname === '/supabase-config.js') {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 

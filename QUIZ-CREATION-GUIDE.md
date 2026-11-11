@@ -25,6 +25,8 @@ Every quiz JSON file needs this structure:
 }
 ```
 
+You can also add a `description` and a `subject` such as `"English"`; both are optional. To try the included [`sample-quiz.json`](./sample-quiz.json), open **Exams**, choose **Publish exam**, select the file, and publish it. Publishing is available to the platform owner.
+
 ## 🔍 Field Explanations
 
 ### `title` (Required)

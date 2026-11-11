@@ -3,126 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#E6E6FA">
-    <meta name="description" content="A progressive web app for focused studying with timers, quizzes, and notes">
-    <title>Study Dashboard - Focus & Learn</title>
+    <meta name="theme-color" content="#7883e8">
+    <meta name="description" content="Luma Study — your calm, connected learning space" data-i18n-content="metaDescription">
+    <title>Luma Study</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="lectures-files.css">
     <link rel="icon" type="image/png" href="Pic.png">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <div class="dashboard-container" id="dashboardContainer">
-        <!-- Header -->
         <header class="dashboard-header">
             <div class="header-content">
-                <h1><img src="Pic.png" alt="Logo" class="logo-icon"> <span class="site-title">Study Dashboard</span></h1>
-                <div class="header-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Studied</span>
-                        <span class="stat-value" id="totalTimeStudied">0h 0m</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Daily Streak</span>
-                        <span class="stat-value" id="dailyStreak">0 🔥</span>
-                    </div>
-                </div>
-            </div>
-            <div class="header-actions">
-                <select id="languageSelect" class="btn" style="min-width:90px;" title="Change Language">
-                    <option value="en">English</option>
-                    <option value="ar">العربية</option>
-                </select>
-                <button class="btn-focus-mode" id="focusModeToggle" title="Toggle Focus Mode">🎯</button>
-                <button class="btn-settings" id="settingsToggle" title="Settings">⚙️</button>
+                <h1><img src="Pic.png" alt="" class="logo-icon"> <span class="site-title">Luma Study</span></h1>
             </div>
         </header>
 
-        <!-- Main Content -->
         <main class="dashboard-main">
-            <!-- Navigation Tabs -->
-            <nav class="tab-navigation">
-                <button class="tab-btn active" data-tab="timer" title="Pomodoro Timer">⏱️ Timer</button>
-                <button class="tab-btn" data-tab="quiz" title="Quiz Engine">❓ Quiz</button>
-                <button class="tab-btn" data-tab="notes" title="Notes">📝 Notes</button>
-                <button class="tab-btn" data-tab="progress" title="Progress">📊 Progress</button>
-                <button class="tab-btn" data-tab="lectures" title="Lectures">🎥 المحاضرات</button>
-                <button class="tab-btn" data-tab="files" title="Files">📁 Files</button>
-            </nav>
+            <aside class="app-sidebar">
+                <div class="sidebar-label" data-i18n="workspace">WORKSPACE</div>
+                <nav class="tab-navigation" aria-label="Main navigation" data-i18n-aria-label="mainNavigation">
+                    <button class="tab-btn active" data-tab="dashboard" title="Dashboard" data-i18n-title="dashboard"><span class="nav-icon">⌂</span><span data-i18n="dashboard">Dashboard</span></button>
+                    <button class="tab-btn" data-tab="community" title="Community" data-i18n-title="community"><span class="nav-icon">◎</span><span data-i18n="community">Community</span></button>
+                    <button class="tab-btn" data-tab="videos" title="Videos" data-i18n-title="videos"><span class="nav-icon">▷</span><span data-i18n="videos">Videos</span></button>
+                    <button class="tab-btn" data-tab="exams" title="Exams" data-i18n-title="exams"><span class="nav-icon">▤</span><span data-i18n="exams">Exams</span></button>
+                    <button class="tab-btn" data-tab="files" title="Files" data-i18n-title="files"><span class="nav-icon">▱</span><span data-i18n="files">Files</span></button>
+                    <button class="tab-btn" data-tab="profile" title="Profile" data-i18n-title="profile"><span class="nav-icon">◉</span><span data-i18n="profile">Profile</span></button>
+                </nav>
+                <div class="sidebar-bottom-controls">
+                    <button class="sidebar-settings-button" id="settingsToggle" type="button"><span class="nav-icon">⚙</span><span data-i18n="settings">Settings</span></button>
+                </div>
+                <div class="sidebar-account">
+                    <span class="account-avatar" id="sidebarAvatar">L</span>
+                    <span class="account-summary"><strong id="sidebarUserName" data-i18n="guest">Guest learner</strong><small id="sidebarAccountState" data-i18n="localProgress">Progress saved on this device</small></span>
+                </div>
+            </aside>
 
-            <!-- Tab Content -->
             <div class="tab-content">
-                <!-- Timer Tab -->
-                <section id="timer" class="tab-pane active">
-                    <div class="timer-container">
-                        <div class="timer-display">
-                            <div class="timer-circle">
-                                <svg class="progress-ring" width="200" height="200">
-                                    <circle class="progress-ring-circle" cx="100" cy="100" r="90" />
-                                </svg>
-                                <div class="timer-text">
-                                    <span id="timerValue" class="timer-value">25:00</span>
-                                    <span id="timerLabel" class="timer-label">Work Time</span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="page-heading">
+                    <div>
+                        <p class="page-eyebrow" data-i18n="learningSpace">YOUR LEARNING SPACE</p>
+                        <h2 id="pageTitle" data-i18n="dashboard">Dashboard</h2>
+                        <p id="pageDescription" data-i18n="dashboardIntro">A clear view of your learning, all in one calm space.</p>
+                    </div>
+                    <div class="page-heading-actions">
+                        <span class="today-chip" id="todayLabel"></span>
+                    </div>
+                </div>
 
-                        <div class="timer-controls">
-                            <button id="timerStart" class="btn btn-primary">Start</button>
-                            <button id="timerPause" class="btn btn-secondary" disabled>Pause</button>
-                            <button id="timerReset" class="btn btn-secondary">Reset</button>
+                <section id="community" class="tab-pane">
+                    <div class="section-heading">
+                        <div><p class="page-eyebrow" data-i18n="globalRoom">GLOBAL ROOM</p><h2 data-i18n="community">Community</h2><p data-i18n="communityIntro">Ask a question, share an idea, and learn together.</p></div>
+                        <span class="live-badge"><span></span><span data-i18n="everyoneTogether">Everyone, together</span></span>
+                    </div>
+                    <div class="community-shell">
+                        <div class="chat-topline"><div class="chat-room-avatar">◎</div><div><strong data-i18n="studyCommunity">Study community</strong><p data-i18n="oneSharedRoom">One shared room for every learner</p></div><span class="chat-connection" id="chatConnection" data-i18n="setupRequired">Setup required</span></div>
+                        <div id="chatMessages" class="chat-messages" aria-live="polite">
+                            <div class="empty-state"><div class="empty-state-icon">✦</div><h3 data-i18n="communityReadyTitle">Your study community is ready</h3><p data-i18n="communitySetupText">Connect a shared account and database to enable live messages for everyone.</p><button class="btn btn-primary" type="button" data-open-profile data-i18n="setUpAccount">Set up an account</button></div>
                         </div>
+                        <form id="chatForm" class="chat-composer">
+                            <label class="sr-only" for="chatInput" data-i18n="writeMessage">Write a message</label>
+                            <input id="chatInput" type="text" maxlength="1000" placeholder="Write a message..." data-i18n-placeholder="writeMessage" disabled>
+                            <button class="btn btn-primary" type="submit" disabled><span data-i18n="send">Send</span><span aria-hidden="true">↗</span></button>
+                        </form>
+                        <p class="chat-note" data-i18n="communitySetupNote">Live chat is unavailable until shared backend credentials are configured.</p>
+                    </div>
+                </section>
 
-                        <div class="timer-settings">
-                            <h3>Customize Intervals</h3>
-                            <div class="settings-group">
-                                <label>Work Duration (minutes)</label>
-                                <input type="number" id="workDuration" min="1" max="60" value="25" class="input-number">
-                            </div>
-                            <div class="settings-group">
-                                <label>Break Duration (minutes)</label>
-                                <input type="number" id="breakDuration" min="1" max="30" value="5" class="input-number">
-                            </div>
-                            <button id="applyTimerSettings" class="btn btn-secondary">Apply Settings</button>
-                        </div>
-
-                        <div class="timer-stats">
-                            <h3>Session Stats</h3>
-                            <div class="stats-list">
-                                <div class="stat-row">
-                                    <span>Sessions Completed:</span>
-                                    <span id="sessionsCompleted">0</span>
-                                </div>
-                                <div class="stat-row">
-                                    <span>Total Breaks:</span>
-                                    <span id="totalBreaks">0</span>
-                                </div>
-                                <div class="stat-row">
-                                    <span>Today's Focus:</span>
-                                    <span id="todaysFocus">0m</span>
+                <section id="profile" class="tab-pane">
+                    <div class="section-heading"><div><p class="page-eyebrow" data-i18n="yourAccount">YOUR ACCOUNT</p><h2 data-i18n="profile">Profile</h2><p data-i18n="profileIntro">Manage your account and keep your learning in sync.</p></div></div>
+                    <div class="profile-layout">
+                        <div class="profile-card profile-summary-card"><div class="profile-avatar" id="profileAvatar">L</div><h3 id="profileDisplayName" data-i18n="guest">Guest learner</h3><p id="profileEmail" data-i18n="notSignedIn">Not signed in</p><span class="sync-status" id="syncStatus"><span></span><span data-i18n="deviceOnly">Device-only mode</span></span></div>
+                        <div class="profile-card auth-card">
+                            <div class="auth-card-heading"><div><p class="page-eyebrow" data-i18n="cloudSync">CLOUD SYNC</p><h3 id="authHeading" data-i18n="createAccount">Create your account</h3></div><button id="authModeToggle" class="text-button" type="button" data-i18n="alreadyHaveAccount">I already have an account</button></div>
+                            <div id="authSetupNotice" class="setup-notice"><strong data-i18n="backendSetupNeeded">Backend setup needed</strong><p data-i18n="backendSetupDescription">To enable secure sign-in and sync between devices, create a Supabase project and configure its public project URL and anonymous key. Never put a service-role key in the website.</p></div>
+                            <form id="authForm" class="auth-form">
+                                <label for="profileName" data-i18n="name">Name</label><input id="profileName" type="text" autocomplete="name" required>
+                                <label for="profileEmailInput" data-i18n="email">Email</label><input id="profileEmailInput" type="email" autocomplete="email" required>
+                                <label for="profilePassword" data-i18n="password">Password</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="8" required>
+                                <p id="authMessage" class="form-message" role="status"></p>
+                                <button id="authSubmit" class="btn btn-primary" type="submit" data-i18n="createAccount">Create your account</button>
+                            </form>
+                            <div id="emailConfirmationNotice" class="auth-form hidden">
+                                <p id="emailConfirmationMessage" class="form-message" role="status"></p>
+                                <div class="form-actions">
+                                    <button id="resendEmailConfirmation" class="btn btn-secondary" type="button" data-i18n="resendConfirmation">Resend confirmation email</button>
                                 </div>
                             </div>
+                            <form id="profileEditForm" class="auth-form hidden">
+                                <label for="profileEditName" data-i18n="name">Name</label><input id="profileEditName" type="text" autocomplete="name" required>
+                                <label for="profileEditEmail" data-i18n="email">Email</label><input id="profileEditEmail" type="email" autocomplete="email" required>
+                                <label for="profileNewPassword" data-i18n="newPassword">New password (optional)</label><input id="profileNewPassword" type="password" autocomplete="new-password" minlength="8">
+                                <p id="profileEditMessage" class="form-message" role="status"></p>
+                                <div class="profile-form-actions">
+                                    <button class="btn btn-primary" type="submit" data-i18n="saveChanges">Save changes</button>
+                                    <button id="signOutButton" class="btn btn-secondary hidden" type="button" data-i18n="signOut">Sign out</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </section>
 
                 <!-- Quiz Tab -->
-                <section id="quiz" class="tab-pane">
-                    
+                <section id="exams" class="tab-pane">
                     <div class="quiz-container">
+                        <div class="exam-intro-card"><div class="exam-intro-header"><div><p class="page-eyebrow" data-i18n="knowledgeCheck">KNOWLEDGE CHECK</p><h2 data-i18n="exams">Exams</h2><p data-i18n="examIntro">Choose an exam and take it one question at a time.</p></div><button id="showExamForm" class="btn btn-primary hidden" type="button" data-i18n="publishExam">Publish exam</button></div><div id="examCatalog" class="exam-catalog"></div></div>
+                        <div id="examAdminForm" class="admin-content-form hidden">
+                            <div class="form-grid"><label class="form-grid-wide"><span data-i18n="examJson">Exam JSON</span><input id="examJsonInput" type="file" accept=".json,application/json"><textarea id="examJsonText" rows="10" spellcheck="false" data-i18n-placeholder="examJsonPlaceholder"></textarea></label><label><span data-i18n="dueDate">Due date (optional)</span><input id="examDueDateInput" type="datetime-local"></label></div>
+                            <div class="form-actions"><button id="publishExamButton" class="btn btn-primary" type="button" data-i18n="publishExam">Publish exam</button><button id="cancelExamButton" class="btn btn-secondary" type="button" data-i18n="cancel">Cancel</button><p id="examFormMessage" class="form-message" role="status"></p></div>
+                        </div>
+                        <div class="exam-history"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="yourJourney">YOUR JOURNEY</p><h3 data-i18n="pastResults">Previous results</h3></div></div><div id="examResultsList" class="exam-results-list"></div></div>
                         <!-- Quiz Upload -->
-                        <div class="quiz-upload">
-                            <h3>Load Quiz</h3>
+                        <div class="quiz-upload hidden">
+                            <h3 data-i18n="loadQuiz">Load Quiz</h3>
                             <div class="upload-group">
                                 <input type="file" id="quizFile" accept=".json" class="file-input">
-                                <button id="loadQuizBtn" class="btn btn-primary">Load Quiz JSON</button>
+                                <button id="loadQuizBtn" class="btn btn-primary" data-i18n="loadQuizJson">Load Quiz JSON</button>
                             </div>
                             <div class="upload-group">
-                                <label for="quizSubject">Subject:</label>
+                                <label for="quizSubject" data-i18n="subject">Subject:</label>
                                 <select id="quizSubject"></select>
                             </div>
                             <details class="quiz-format-help">
-                                <summary>📋 Quiz JSON Format</summary>
+                                <summary><span aria-hidden="true">📋 </span><span data-i18n="quizJsonFormat">Quiz JSON Format</span></summary>
                                 <pre><code>{
   "title": "Biology Quiz",
   "questions": [
@@ -137,20 +139,10 @@
                             </details>
                         </div>
 
-                        <!-- Student Name Input Modal -->
-                        <div id="quizNameModal" class="quiz-name-modal hidden">
-                            <div class="modal-content">
-                                <h2>Start Quiz</h2>
-                                <p>Please enter your name:</p>
-                                <input type="text" id="studentName" class="student-name-input" placeholder="e.g., John Doe">
-                                <button id="startQuizBtn" class="btn btn-primary">Start Quiz</button>
-                            </div>
-                        </div>
-
                         <!-- Quiz Session -->
                         <div id="quizSession" class="quiz-session hidden">
                             <div class="quiz-header">
-                                <h2 id="quizTitle">Quiz</h2>
+                                <h2 id="quizTitle" data-i18n="quizTitle">Quiz</h2>
                                 <div class="quiz-progress">
                                     <span id="questionProgress">1 / 10</span>
                                     <div class="progress-bar">
@@ -161,32 +153,29 @@
 
                             <div class="quiz-content">
                                 <div class="question-box">
-                                    <h3 id="questionText">Question text here</h3>
+                                    <h3 id="questionText" data-i18n="questionPrompt">Question text here</h3>
                                     <div id="optionsContainer" class="options-container"></div>
                                 </div>
 
-                                <div class="spaced-repetition-indicator">
-                                    <span id="repetitionFlag" class="rep-flag hidden">⚠️ Review Needed</span>
-                                </div>
-
                                 <div class="quiz-navigation">
-                                    <button id="prevQuestion" class="btn btn-secondary">← Previous</button>
-                                    <button id="nextQuestion" class="btn btn-primary">Next →</button>
-                                    <button id="submitQuiz" class="btn btn-success hidden">Submit Quiz</button>
+                                    <button id="prevQuestion" class="btn btn-secondary" data-i18n="previous">← Previous</button>
+                                    <button id="nextQuestion" class="btn btn-primary" data-i18n="next">Next →</button>
+                                    <button id="submitQuiz" class="btn btn-success hidden" data-i18n="submitQuiz">Submit Quiz</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Quiz Results -->
                         <div id="quizResults" class="quiz-results hidden">
-                            <h2>Quiz Results</h2>
+                            <h2 data-i18n="quizResults">Quiz Results</h2>
+                            <p id="examSaveMessage" class="form-message" role="status" aria-live="polite"></p>
                             <div class="results-summary">
                                 <div class="result-stat">
-                                    <span class="result-label">Score</span>
+                                    <span class="result-label" data-i18n="score">Score</span>
                                     <span class="result-value" id="finalScore">0%</span>
                                 </div>
                                 <div class="result-stat">
-                                    <span class="result-label">Correct</span>
+                                    <span class="result-label" data-i18n="correct">Correct</span>
                                     <span class="result-value" id="correctCount">0/0</span>
                                 </div>
                             </div>
@@ -194,174 +183,73 @@
                             <div id="reviewContainer" class="review-container"></div>
 
                             <div class="results-actions">
-                                <button id="retakeQuiz" class="btn btn-primary">Retake Quiz</button>
-                                <button id="backToQuiz" class="btn btn-secondary">Back to Load</button>
+                                <button id="retakeQuiz" class="btn btn-primary" data-i18n="retakeQuiz">Retake Quiz</button>
+                                <button id="backToQuiz" class="btn btn-secondary" data-i18n="backToLoad">Back to Load</button>
                             </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Notes Tab -->
-                <section id="notes" class="tab-pane">
-                    <div class="notes-container">
-                        <div class="notes-editor">
-                            <div class="editor-header">
-                                <input type="text" id="noteTitle" placeholder="Note title..." class="note-title-input">
-                                <select id="noteSubject" class="btn" style="margin-left:1em;"></select>
-                                <div class="editor-actions">
-                                    <button id="saveNote" class="btn btn-primary">💾 Save</button>
-                                    <button id="deleteNote" class="btn btn-danger">🗑️ Delete</button>
-                                </div>
-                            </div>
-                            <div class="markdown-editor">
-                                <textarea id="noteContent" placeholder="Write your notes... (Markdown supported)&#10;&#10;# Heading 1&#10;**bold** *italic* `code`"></textarea>
-                                <div id="notePreview" class="note-preview"></div>
-                            </div>
-                        </div>
-
-                        <div class="notes-list">
-                            <div style="display:flex;align-items:center;justify-content:space-between;">
-                                <h3>Your Notes</h3>
-                                <select id="notesFilterSubject" class="btn" style="max-width:150px;"></select>
-                            </div>
-                            <div id="notesList" class="notes-list-items"></div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Progress Tab -->
-                <section id="progress" class="tab-pane">
+                <section id="dashboard" class="tab-pane active">
                     <div class="progress-container">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <h2>Study Progress</h2>
-                            <select id="progressFilterSubject" class="btn" style="max-width:150px;"></select>
+                        <div class="dashboard-welcome-card">
+                            <div><p class="page-eyebrow" data-i18n="welcomeBack">WELCOME BACK</p><h2><span data-i18n="readyForToday">Ready for today?</span> <span class="welcome-sparkle">✦</span></h2><p data-i18n="dashboardIntro">A clear view of your learning, all in one calm space.</p></div>
+                            <button class="btn btn-light" type="button" data-open-tab="exams"><span data-i18n="browseExams">Browse exams</span><span aria-hidden="true">→</span></button>
                         </div>
-
-                        <div class="progress-grid">
-                            <div class="progress-card">
-                                <h3>Daily Goal Tracking</h3>
-                                <div id="dailyGoalChart" class="chart-placeholder">
-                                    <canvas id="dailyGoalCanvas"></canvas>
-                                </div>
-                            </div>
-
-                            <div class="progress-card">
-                                <h3>Quiz Performance</h3>
-                                <div id="quizPerformanceChart" class="chart-placeholder">
-                                    <canvas id="quizPerformanceCanvas"></canvas>
-                                </div>
-                            </div>
-
-                            <div class="progress-card">
-                                <h3>Study Streaks</h3>
-                                <div class="streak-calendar" id="streakCalendar"></div>
-                            </div>
-
-                            <div class="progress-card">
-                                <h3>Spaced Repetition Queue</h3>
-                                <div id="repetitionQueue" class="repetition-queue"></div>
-                            </div>
+                        <div class="overview-grid">
+                            <article class="overview-card"><span class="overview-icon icon-purple">▤</span><span data-i18n="examsCompleted">Exams completed</span><strong id="dashboardExams">0</strong><small data-i18n="yourCompletedExams">Your completed exams</small></article>
+                            <article class="overview-card"><span class="overview-icon icon-blue">▷</span><span data-i18n="videosWatched">Videos watched</span><strong id="dashboardVideos">0</strong><small data-i18n="keepLearning">Keep learning at your pace</small></article>
+                            <article class="overview-card"><span class="overview-icon icon-violet">↓</span><span data-i18n="filesDownloaded">Files downloaded</span><strong id="dashboardFiles">0</strong><small data-i18n="resourcesForLater">Resources saved for later</small></article>
                         </div>
-
-                        <div class="progress-actions">
-                            <button id="exportData" class="btn btn-secondary">📥 Export Data</button>
-                            <button id="importData" class="btn btn-secondary">📤 Import Data</button>
-                            <input type="file" id="importFile" accept=".json" class="hidden">
-                            <button id="clearAllData" class="btn btn-danger">Clear All Data</button>
+                        <div class="dashboard-content-grid">
+                            <article class="dashboard-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="whatsNext">WHAT'S NEXT</p><h3 data-i18n="upcomingExams">Upcoming exams</h3></div><button class="text-button" type="button" data-open-tab="exams" data-i18n="viewAll">View all →</button></div><div id="upcomingExams" class="dashboard-list"><div class="empty-inline" data-i18n="noUpcomingExams">No upcoming exams yet.</div></div></article>
+                            <article class="dashboard-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="freshlyAdded">FRESHLY ADDED</p><h3 data-i18n="newVideos">New videos</h3></div><button class="text-button" type="button" data-open-tab="videos" data-i18n="viewAll">View all →</button></div><div id="dashboardNewVideos" class="dashboard-list"><div class="empty-inline" data-i18n="noVideosYet">No videos have been added yet.</div></div></article>
                         </div>
+                        <article class="dashboard-panel notification-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="stayInTheLoop">STAY IN THE LOOP</p><h3 data-i18n="updatesAndMessages">Updates & messages</h3></div><button class="text-button" type="button" data-open-tab="community" data-i18n="openCommunity">Open community →</button></div><div id="dashboardNotifications" class="empty-inline" data-i18n="noNotifications">You’re all caught up.</div></article>
                     </div>
                 </section>
 
-                <!-- Lectures Tab -->
-                <section id="lectures" class="tab-pane">
-                    <div class="lectures-container">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <h2>المحاضرات (Lectures)</h2>
-                            <button id="adminModeBtn" class="btn btn-secondary">🔐 Admin Mode</button>
-                        </div>
-                        <div id="lecturesContent" class="lectures-content">
-                            <div id="lecturesFolders" class="folders-grid"></div>
-                            <div id="adminUploadArea" class="admin-upload-area hidden">
-                                <h3>Upload Lecture Video</h3>
-                                <div class="upload-group">
-                                    <label for="lectureSubject">Select Subject:</label>
-                                    <select id="lectureSubject" class="btn"></select>
-                                </div>
-                                <div class="upload-group">
-                                    <input type="file" id="lectureFile" accept=".mp4,.mov" class="file-input">
-                                    <button id="uploadLectureBtn" class="btn btn-primary">Upload Video</button>
-                                </div>
-                                <div id="uploadProgress" class="upload-progress hidden">
-                                    <div class="progress-bar">
-                                        <div id="progressFill" class="progress-fill"></div>
-                                    </div>
-                                    <span id="progressText">0%</span>
-                                </div>
-                            </div>
-                        </div>
+                <section id="videos" class="tab-pane">
+                    <div class="section-heading"><div><p class="page-eyebrow" data-i18n="watchAndLearn">WATCH & LEARN</p><h2 data-i18n="videos">Videos</h2><p data-i18n="videosIntro">Lessons and explainers, organized by subject.</p></div><button id="showVideoForm" class="btn btn-primary" type="button" data-i18n="addVideo">Add video</button></div>
+                    <div id="videoAdminForm" class="admin-content-form hidden">
+                        <div class="form-grid"><label><span data-i18n="videoTitle">Video title</span><input id="videoTitleInput" type="text" maxlength="140" data-i18n-placeholder="youtubeTitleAuto" placeholder="Fetched from YouTube" readonly required></label><label><span data-i18n="subject">Subject</span><select id="videoSubjectInput"></select></label><label class="form-grid-wide"><span data-i18n="youtubeUrl">YouTube link</span><input id="videoUrlInput" type="url" placeholder="https://www.youtube.com/watch?v=..." required></label></div>
+                        <p id="videoLocalNotice" class="form-hint" data-i18n="videoLocalNotice">Videos added here are saved only in this browser until shared publishing is configured.</p>
+                        <div class="form-actions"><button id="saveVideoButton" class="btn btn-primary" type="button" data-i18n="saveVideo">Save video</button><button id="cancelVideoButton" class="btn btn-secondary" type="button" data-i18n="cancel">Cancel</button><p id="videoFormMessage" class="form-message" role="status"></p></div>
                     </div>
+                    <div class="content-toolbar"><label class="sr-only" for="videoSubjectFilter" data-i18n="filterBySubject">Filter by subject</label><select id="videoSubjectFilter"><option value="all" data-i18n="allSubjects">All subjects</option></select><span id="videoCount" class="content-count"></span></div>
+                    <div id="videoGrid" class="video-grid"><div class="empty-state"><div class="empty-state-icon">▷</div><h3 data-i18n="noVideosYet">No videos have been added yet.</h3><p data-i18n="videosSetupText">YouTube lessons added by your study platform will appear here.</p></div></div>
                 </section>
 
                 <!-- Files Tab -->
                 <section id="files" class="tab-pane">
                     <div class="files-container">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <h2>Files</h2>
-                            <button id="adminModeBtn2" class="btn btn-secondary">🔐 Admin Mode</button>
+                        <div class="section-heading"><div><p class="page-eyebrow" data-i18n="resourceLibrary">RESOURCE LIBRARY</p><h2 data-i18n="files">Files</h2><p data-i18n="filesIntro">Browse, preview, and download books and study resources.</p></div><button id="showFileForm" class="btn btn-primary hidden" type="button" data-i18n="addFile">Add file</button></div>
+                        <div id="fileAdminForm" class="admin-content-form hidden">
+                            <div class="form-grid"><label><span data-i18n="fileTitle">File title</span><input id="fileTitleInput" type="text" maxlength="160" required></label><label><span data-i18n="subject">Subject</span><select id="fileSubjectInput"></select></label><label class="form-grid-wide"><span data-i18n="chooseFileOptional">Choose a file (optional when editing)</span><input id="sharedFileInput" type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.gif"></label></div>
+                            <div class="form-actions"><button id="uploadSharedFile" class="btn btn-primary" type="button" data-i18n="uploadFile">Upload file</button><button id="cancelFileForm" class="btn btn-secondary" type="button" data-i18n="cancel">Cancel</button><p id="fileFormMessage" class="form-message" role="status"></p></div>
                         </div>
                         <div id="filesContent" class="files-content">
-                            <div id="filesFolders" class="folders-grid"></div>
-                            <div id="adminFileUploadArea" class="admin-upload-area hidden">
-                                <h3>Upload File</h3>
-                                <div class="upload-group">
-                                    <label for="fileSubject">Select Folder:</label>
-                                    <select id="fileSubject" class="btn"></select>
-                                </div>
-                                <div class="upload-group">
-                                    <input type="file" id="fileUploadInput" accept=".pdf,.jpg,.jpeg,.png,.gif" class="file-input">
-                                    <button id="uploadFileBtn" class="btn btn-primary">Upload File</button>
-                                </div>
-                                <div id="fileUploadProgress" class="upload-progress hidden">
-                                    <div class="progress-bar">
-                                        <div id="fileProgressFill" class="progress-fill"></div>
-                                    </div>
-                                    <span id="fileProgressText">0%</span>
-                                </div>
-                            </div>
+                            <div id="filesFolders" class="resource-list"></div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Subjects Dashboard Tab (kept for analytics) -->
-                <section id="subjects-dashboard" class="tab-pane hidden">
-                    <div class="subjects-dashboard-container">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <h2>Subjects Dashboard</h2>
-                            <select id="subjectsDashboardFilter" class="btn" style="max-width:150px;"></select>
-                        </div>
-                        <div id="subjectsAnalytics" class="subjects-analytics-grid">
-                            <!-- Analytics cards will be rendered here by JS -->
-                        </div>
-                    </div>
-                </section>
             </div>
         </main>
 
-        <!-- Admin Authentication Modal -->
-        <div id="adminModal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Admin Authentication</h2>
-                    <button class="modal-close" id="closeAdminModal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="setting-item">
-                        <label for="adminPassword">Enter Admin Password:</label>
-                        <input type="password" id="adminPassword" class="input-field" placeholder="Enter password">
-                    </div>
-                    <button id="adminLoginBtn" class="btn btn-primary">Login</button>
-                    <div id="adminMessage" class="admin-message hidden"></div>
-                </div>
+        <div id="videoModal" class="video-modal hidden" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle">
+            <div class="video-modal-panel">
+                <button id="closeVideoModal" class="video-modal-close" type="button" aria-label="Close video" data-i18n-aria-label="closeVideo">×</button>
+                <div class="video-player-wrap"><iframe id="videoPlayer" title="YouTube video player" data-i18n-title="youtubePlayer" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerpolicy="origin" allowfullscreen></iframe></div>
+                <h2 id="videoModalTitle"></h2>
+                <a id="watchOnYoutube" class="btn btn-secondary" target="_blank" rel="noopener noreferrer" data-i18n="watchOnYoutube">Watch on YouTube</a>
+            </div>
+        </div>
+        <div id="fileViewerModal" class="video-modal hidden" role="dialog" aria-modal="true" aria-labelledby="fileViewerTitle">
+            <div class="file-viewer-panel">
+                <div class="file-viewer-heading"><h2 id="fileViewerTitle"></h2><button id="closeFileViewer" class="video-modal-close" type="button" aria-label="Close file viewer" data-i18n-aria-label="closeFileViewer">×</button></div>
+                <iframe id="fileViewer" title="File preview" data-i18n-title="filePreview"></iframe>
             </div>
         </div>
 
@@ -369,22 +257,29 @@
         <div id="settingsModal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Settings</h2>
-                    <button class="modal-close" id="closeSettings">&times;</button>
+                    <h2 data-i18n="settings">Settings</h2>
+                    <button class="modal-close" id="closeSettings" type="button" aria-label="Close settings" data-i18n-aria-label="closeSettings">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="setting-item">
+                        <label for="languageSelect" data-i18n="language">Language:</label>
+                        <select id="languageSelect" class="settings-select" title="Change Language" data-i18n-title="changeLanguage">
+                            <option value="en" data-i18n="english">English</option>
+                            <option value="ar" data-i18n="arabic">العربية</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
                         <label>
                             <input type="checkbox" id="soundToggle" checked>
-                            Enable Sound Notifications
+                            <span data-i18n="enableSound">Enable Sound Notifications</span>
                         </label>
                     </div>
                     <div class="setting-item">
                         <label>
-                            Theme:
+                            <span data-i18n="theme">Theme:</span>
                             <select id="themeSelect">
-                                <option value="light">Light</option>
-                                <option value="dark">Dark</option>
+                                <option value="light" data-i18n="light">Light</option>
+                                <option value="dark" data-i18n="dark">Dark</option>
                             </select>
                         </label>
                     </div>
@@ -393,8 +288,10 @@
         </div>
     </div>
 <div class="signature-fixed">
-    Made with ❤️ by <span class="name">MS(Mohamed Salah)</span> | Luma Study
+    <span data-i18n="madeWithLove">Made with ❤️ by</span> <span class="name">MS(Mohamed Salah)</span> | Luma Study
 </div>
+    <script src="supabase-config.js"></script>
+    <script src="portal-backend.js"></script>
     <script src="script.js"></script>
 
     <!-- Service Worker Registration for PWA -->

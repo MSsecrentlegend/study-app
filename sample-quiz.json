@@ -1,60 +1,62 @@
 {
-  "title": "Biology 101 Quiz",
+  "title": "English Grammar and Vocabulary",
+  "description": "A short practice exam covering parts of speech, verb tenses, punctuation, and vocabulary.",
+  "subject": "English",
   "questions": [
     {
       "id": 1,
-      "text": "What is the powerhouse of the cell?",
+      "text": "Which word is the verb in this sentence: \"Maya reads every evening\"?",
       "options": [
-        "A) Nucleus",
-        "B) Mitochondria",
-        "C) Ribosome",
-        "D) Endoplasmic Reticulum"
+        "Maya",
+        "reads",
+        "every",
+        "evening"
       ],
       "correct": 1
     },
     {
       "id": 2,
-      "text": "Which process do plants use to convert sunlight into energy?",
+      "text": "Choose the correct past-tense form: \"They ___ to the library yesterday.\"",
       "options": [
-        "A) Respiration",
-        "B) Photosynthesis",
-        "C) Fermentation",
-        "D) Decomposition"
-      ],
-      "correct": 1
-    },
-    {
-      "id": 3,
-      "text": "What is the basic unit of life?",
-      "options": [
-        "A) Atom",
-        "B) Molecule",
-        "C) Cell",
-        "D) Tissue"
+        "go",
+        "goed",
+        "went",
+        "going"
       ],
       "correct": 2
     },
     {
-      "id": 4,
-      "text": "Which organism is a prokaryote?",
+      "id": 3,
+      "text": "Which sentence uses the apostrophe correctly?",
       "options": [
-        "A) Human",
-        "B) Bacteria",
-        "C) Plant",
-        "D) Fungus"
+        "The students books are on the desk.",
+        "The student's books are on the desk.",
+        "The students book's are on the desk.",
+        "The students's books are on the desk."
       ],
       "correct": 1
     },
     {
-      "id": 5,
-      "text": "What does DNA stand for?",
+      "id": 4,
+      "text": "What is a synonym for “careful”?",
       "options": [
-        "A) Deoxyribonucleic Acid",
-        "B) Deoxyribose Nucleotide Arrangement",
-        "C) Deoxyribose Nitrogen Acid",
-        "D) Deoxidized Nucleic Acid"
+        "cautious",
+        "careless",
+        "hurried",
+        "noisy"
       ],
       "correct": 0
+    },
+    {
+      "id": 5,
+      "text": "Which word correctly completes the sentence: \"The students ___ ready for the exam\"?",
+      "options": [
+        "is",
+        "was",
+        "are",
+        "be"
+      ],
+      "correct": 2
     }
   ]
 }
