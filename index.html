@@ -83,12 +83,13 @@
                                 <p id="authMessage" class="form-message" role="status"></p>
                                 <button id="authSubmit" class="btn btn-primary" type="submit" data-i18n="createAccount">Create your account</button>
                             </form>
-                            <div id="emailConfirmationNotice" class="auth-form hidden">
-                                <p id="emailConfirmationMessage" class="form-message" role="status"></p>
-                                <div class="form-actions">
-                                    <button id="resendEmailConfirmation" class="btn btn-secondary" type="button" data-i18n="resendConfirmation">Resend confirmation email</button>
-                                </div>
-                            </div>
+                            <form id="emailVerificationForm" class="auth-form hidden">
+                                <label for="emailVerificationAddress" data-i18n="email">Email</label><input id="emailVerificationAddress" type="email" autocomplete="email" readonly required>
+                                <label for="emailVerificationCode" data-i18n="verificationCode">Verification code</label><input id="emailVerificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+                                <p id="emailVerificationMessage" class="form-message" role="status"></p>
+                                <button id="verifyEmailCode" class="btn btn-primary" type="submit" data-i18n="verifyEmail">Verify email</button>
+                                <button id="resendEmailCode" class="btn btn-secondary" type="button" data-i18n="resendVerificationCode">Resend code</button>
+                            </form>
                             <form id="profileEditForm" class="auth-form hidden">
                                 <label for="profileEditName" data-i18n="name">Name</label><input id="profileEditName" type="text" autocomplete="name" required>
                                 <label for="profileEditEmail" data-i18n="email">Email</label><input id="profileEditEmail" type="email" autocomplete="email" required>

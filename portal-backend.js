@@ -109,10 +109,17 @@ window.PortalBackend = {
         const { data, error } = await this.client.auth.signUp({
             email,
             password,
-            options: {
-                data: { display_name: name },
-                emailRedirectTo: window.location.origin
-            }
+            options: { data: { display_name: name } }
+        });
+        if (error) throw error;
+        return data;
+    },
+
+    async verifySignUpEmail(email, token) {
+        const { data, error } = await this.client.auth.verifyOtp({
+            email,
+            token,
+            type: 'signup'
         });
         if (error) throw error;
         return data;
@@ -158,7 +165,7 @@ window.PortalBackend = {
             attempt_id: result.attemptId,
             user_id: this.user.id,
             exam_id: examId,
-            student_name: result.studentName || this.profile?.display_name || this.user.email,
+            student_name: result.studentName || this.profile?.display_name || this.user.email || 'Learner',
             quiz_title: result.quizTitle,
             score: result.score,
             correct_count: result.correctCount,

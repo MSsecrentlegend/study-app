@@ -1,7 +1,7 @@
 // Service Worker for offline functionality and caching strategy
 // Cache version auto-updates daily to bust old caches
 
-const CACHE_VERSION = 'luma-portal-v18-' + new Date().toISOString().split('T')[0];
+const CACHE_VERSION = 'luma-portal-v20-' + new Date().toISOString().split('T')[0];
 const CACHE_URLS = [
   '/',
   '/index.html',

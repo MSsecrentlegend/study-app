@@ -2625,7 +2625,6 @@ const PORTAL_TRANSLATIONS = {
         fetchingVideoTitle: 'Getting the title from YouTube…', videoTitleLoaded: 'YouTube title loaded.',
         videoTitleUnavailable: 'Could not get this video title from YouTube. Check the link and try again.',
         edit: 'Edit', delete: 'Delete', confirmDeleteVideo: 'Delete this video?', confirmDeleteExam: 'Delete this exam?', confirmDeleteFile: 'Delete this file?',
-        resendConfirmation: 'Resend confirmation email', confirmationResent: 'A new confirmation email was sent. Check your inbox.',
         examJsonPlaceholder: 'Paste exam JSON here to create or edit an exam.',
         chooseFileOptional: 'Choose a file (optional when editing)', watchOnYoutube: 'Watch on YouTube',
         ownerOnly: 'Only the platform owner can add, edit, or delete shared content.',
@@ -2636,8 +2635,10 @@ const PORTAL_TRANSLATIONS = {
         accountSetupRequired: 'Account service is not configured yet. Your account has not been created.',
         signIn: 'Sign in', noAccount: 'Need an account?', alreadyHaveAccountShort: 'Already registered?',
         newPassword: 'New password (optional)', saveChanges: 'Save changes', accountSettings: 'Account settings',
-        accountCreated: 'Account created. You are signed in.', confirmationSent: 'Check your email and click the confirmation link to finish creating your account.',
-        emailRateLimit: 'Too many confirmation emails were requested. Wait a while before trying again, or sign in if you already created your account.',
+        verificationCode: 'Verification code', verifyEmail: 'Verify email', resendVerificationCode: 'Resend code',
+        accountCreated: 'Account created and signed in.', emailCodeSent: 'Enter the code sent to your email to finish creating your account. If you do not receive it, request another code.',
+        emailCodeResent: 'A new code was sent. Check your email.', authRateLimit: 'Too many requests. Please wait a while before trying again.',
+        invalidEmail: 'Enter a valid email address.', invalidVerificationCode: 'Enter the code from your email.',
         signInSuccess: 'Signed in successfully.', invalidCredentials: 'Email or password is incorrect.',
         accountExists: 'An account already exists for this email.', passwordTooShort: 'Use a password with at least 8 characters.',
         unexpectedError: 'Something went wrong. Please try again.', profileUpdated: 'Profile updated.',
@@ -2710,7 +2711,6 @@ const PORTAL_TRANSLATIONS = {
         fetchingVideoTitle: 'جارٍ جلب العنوان من يوتيوب…', videoTitleLoaded: 'تم جلب عنوان الفيديو من يوتيوب.',
         videoTitleUnavailable: 'تعذر جلب عنوان الفيديو من يوتيوب. تحقق من الرابط وحاول مرة أخرى.',
         edit: 'تعديل', delete: 'حذف', confirmDeleteVideo: 'هل تريد حذف هذا الفيديو؟', confirmDeleteExam: 'هل تريد حذف هذا الاختبار؟', confirmDeleteFile: 'هل تريد حذف هذا الملف؟',
-        resendConfirmation: 'إعادة إرسال رسالة التأكيد', confirmationResent: 'تم إرسال رسالة تأكيد جديدة. تحقق من بريدك.',
         examJsonPlaceholder: 'الصق بيانات الاختبار بصيغة JSON لإنشاء اختبار أو تعديله.',
         chooseFileOptional: 'اختر ملفاً (اختياري عند التعديل)', watchOnYoutube: 'شاهد على يوتيوب',
         ownerOnly: 'مالك المنصة وحده يستطيع إضافة المحتوى المشترك أو تعديله أو حذفه.',
@@ -2721,8 +2721,10 @@ const PORTAL_TRANSLATIONS = {
         accountSetupRequired: 'خدمة الحساب غير مُعدة بعد. لم يتم إنشاء حسابك.',
         signIn: 'تسجيل الدخول', noAccount: 'تحتاج إلى حساب؟', alreadyHaveAccountShort: 'لديك حساب بالفعل؟',
         newPassword: 'كلمة مرور جديدة (اختياري)', saveChanges: 'حفظ التغييرات', accountSettings: 'إعدادات الحساب',
-        accountCreated: 'تم إنشاء الحساب وتسجيل الدخول.', confirmationSent: 'تحقق من بريدك واضغط رابط التأكيد لإكمال إنشاء حسابك.',
-        emailRateLimit: 'تم طلب رسائل تأكيد كثيرة. انتظر قليلاً قبل المحاولة مجدداً، أو سجل الدخول إذا أنشأت حسابك بالفعل.',
+        verificationCode: 'رمز التأكيد', verifyEmail: 'تأكيد البريد الإلكتروني', resendVerificationCode: 'إعادة إرسال الرمز',
+        accountCreated: 'تم إنشاء الحساب وتسجيل الدخول.', emailCodeSent: 'أدخل الرمز المرسل إلى بريدك لإكمال إنشاء الحساب. إذا لم يصلك، اطلب رمزاً جديداً.',
+        emailCodeResent: 'تم إرسال رمز جديد. تحقق من بريدك.', authRateLimit: 'طلبات كثيرة. انتظر قليلاً قبل المحاولة مجدداً.',
+        invalidEmail: 'أدخل بريداً إلكترونياً صالحاً.', invalidVerificationCode: 'أدخل الرمز المرسل إلى بريدك.',
         signInSuccess: 'تم تسجيل الدخول بنجاح.', invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
         accountExists: 'يوجد حساب مسجل بهذا البريد الإلكتروني.', passwordTooShort: 'استخدم كلمة مرور من 8 أحرف على الأقل.',
         unexpectedError: 'حدث خطأ. حاول مرة أخرى.', profileUpdated: 'تم تحديث الملف الشخصي.',
@@ -2895,10 +2897,10 @@ window.PortalUI = {
     exams: [],
     currentTab: 'dashboard',
     authMode: 'signup',
-    pendingConfirmationEmail: '',
     editingVideoId: null,
     editingExamId: null,
     editingFile: null,
+    pendingConfirmationEmail: '',
 
     subjectName(subject) {
         const key = {
@@ -3639,6 +3641,10 @@ window.PortalUI = {
             const email = document.getElementById('profileEmailInput').value.trim();
             const password = document.getElementById('profilePassword').value;
             const submit = document.getElementById('authSubmit');
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                message.textContent = this.text('invalidEmail');
+                return;
+            }
             submit.disabled = true;
             message.textContent = '';
             try {
@@ -3649,9 +3655,11 @@ window.PortalUI = {
                         message.textContent = this.text('accountCreated');
                     } else {
                         this.pendingConfirmationEmail = email;
+                        document.getElementById('emailVerificationAddress').value = email;
+                        document.getElementById('emailVerificationCode').value = '';
                         document.getElementById('authForm').classList.add('hidden');
-                        document.getElementById('emailConfirmationNotice').classList.remove('hidden');
-                        document.getElementById('emailConfirmationMessage').textContent = this.text('confirmationSent');
+                        document.getElementById('emailVerificationForm').classList.remove('hidden');
+                        document.getElementById('emailVerificationMessage').textContent = this.text('emailCodeSent');
                     }
                 } else {
                     await PortalBackend.signIn(email, password);
@@ -3665,24 +3673,47 @@ window.PortalUI = {
                 submit.disabled = false;
             }
         });
-        document.getElementById('resendEmailConfirmation')?.addEventListener('click', async event => {
-            const button = event.currentTarget;
-            const message = document.getElementById('emailConfirmationMessage');
-            if (!this.pendingConfirmationEmail) return;
-            button.disabled = true;
+        document.getElementById('emailVerificationForm')?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const email = document.getElementById('emailVerificationAddress').value.trim();
+            const token = document.getElementById('emailVerificationCode').value.trim();
+            const message = document.getElementById('emailVerificationMessage');
+            const submit = document.getElementById('verifyEmailCode');
+            if (!token) {
+                message.textContent = this.text('invalidVerificationCode');
+                return;
+            }
+            submit.disabled = true;
             try {
-                await PortalBackend.resendSignUpConfirmation(this.pendingConfirmationEmail);
-                message.textContent = this.text('confirmationResent');
+                await PortalBackend.verifySignUpEmail(email, token);
+                this.pendingConfirmationEmail = '';
+                document.getElementById('emailVerificationCode').value = '';
+                message.textContent = this.text('accountCreated');
             } catch (error) {
                 message.textContent = this.authErrorMessage(error);
-                console.error('Resending confirmation email failed:', error);
+                console.error('Email verification failed:', error);
+            } finally {
+                submit.disabled = false;
+            }
+        });
+        document.getElementById('resendEmailCode')?.addEventListener('click', async event => {
+            const button = event.currentTarget;
+            const email = document.getElementById('emailVerificationAddress').value.trim();
+            const message = document.getElementById('emailVerificationMessage');
+            button.disabled = true;
+            try {
+                await PortalBackend.resendSignUpConfirmation(email);
+                message.textContent = this.text('emailCodeResent');
+            } catch (error) {
+                message.textContent = this.authErrorMessage(error);
+                console.error('Resending signup code failed:', error);
             } finally {
                 button.disabled = false;
             }
         });
         document.getElementById('authModeToggle')?.addEventListener('click', () => {
             this.pendingConfirmationEmail = '';
-            document.getElementById('emailConfirmationNotice').classList.add('hidden');
+            document.getElementById('emailVerificationForm').classList.add('hidden');
             document.getElementById('authForm').classList.remove('hidden');
             this.authMode = this.authMode === 'signup' ? 'signin' : 'signup';
             this.refreshDynamicLabels();
@@ -3739,7 +3770,8 @@ window.PortalUI = {
 
     authErrorMessage(error) {
         const code = error?.code || error?.message || '';
-        if (/rate.?limit|too many requests/i.test(code)) return this.text('emailRateLimit');
+        if (/rate.?limit|too many requests/i.test(code)) return this.text('authRateLimit');
+        if (/token has expired|invalid.*token|otp.*expired|invalid.*otp/i.test(code)) return this.text('invalidVerificationCode');
         if (/invalid login credentials/i.test(code)) return this.text('invalidCredentials');
         if (/already registered|user already exists/i.test(code)) return this.text('accountExists');
         if (/password should be at least|password.*characters/i.test(code)) return this.text('passwordTooShort');
@@ -3763,7 +3795,6 @@ window.PortalUI = {
     },
 
     onSessionChanged(user, profile, isAdmin) {
-        if (user) this.pendingConfirmationEmail = '';
         const name = profile?.display_name || user?.email?.split('@')[0] || this.text('guest');
         const initial = name.trim().charAt(0).toUpperCase() || 'L';
         document.getElementById('profileDisplayName').textContent = name;
@@ -3777,8 +3808,10 @@ window.PortalUI = {
         document.querySelector('#syncStatus > span:last-child').textContent = this.text(
             user ? 'cloudSyncOn' : (PortalBackend.configured ? 'signInToSync' : 'deviceOnly')
         );
-        document.getElementById('authForm').classList.toggle('hidden', Boolean(user));
-        document.getElementById('emailConfirmationNotice').classList.toggle('hidden', Boolean(user) || !this.pendingConfirmationEmail);
+        if (user) this.pendingConfirmationEmail = '';
+        const awaitingEmailCode = Boolean(this.pendingConfirmationEmail);
+        document.getElementById('authForm').classList.toggle('hidden', Boolean(user) || awaitingEmailCode);
+        document.getElementById('emailVerificationForm').classList.toggle('hidden', Boolean(user) || !awaitingEmailCode);
         document.getElementById('profileEditForm').classList.toggle('hidden', !user);
         document.getElementById('authModeToggle').classList.toggle('hidden', Boolean(user));
         document.getElementById('signOutButton').classList.toggle('hidden', !user);

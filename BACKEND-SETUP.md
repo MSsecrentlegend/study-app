@@ -5,10 +5,12 @@ The portal uses Supabase for accounts, cross-device progress sync, shared videos
 1. Create a Supabase project.
 2. Run [`supabase/schema.sql`](./supabase/schema.sql) in its SQL Editor. Rerun it after updates; it now creates the per-account `exam_results` table and policies used to save exam scores.
 3. Add the project's URL and anon/public key to [`supabase-config.js`](./supabase-config.js). Never use a service-role key in the browser.
-4. Enable email confirmations and configure the Supabase Auth site URL and allowed redirect URLs for the portal (for local testing, `http://localhost:8000`). The default confirmation email link works; custom SMTP is optional.
-5. Reload the portal and create an account from **Profile**, then click the confirmation link sent by email.
+4. In Supabase **Authentication > Sign In / Providers**, enable email/password authentication and keep **Confirm email** enabled.
+5. Configure a custom SMTP sender under **Authentication > SMTP Settings**. For Resend, first verify a domain you own and add Resend's DNS records. Use host `smtp.resend.com`, port `465` or `587`, username `resend`, and the Resend API key as the SMTP password. Set the sender address to an address at your verified domain. Never put the SMTP password in `supabase-config.js`.
+6. In **Authentication > Email Templates > Confirm signup**, include `{{ .Token }}` in the email body so Supabase sends a code the user can enter in the portal.
+7. Configure the Supabase Auth site URL and allowed redirect URLs for the portal (for local testing, `http://localhost:8000`). Create an account from **Profile**, enter the emailed code, which verifies the email and signs the user in.
 
-Supabase may limit confirmation emails during testing. If you see a rate-limit message, wait before requesting another email, sign in if the account already exists, or configure SMTP in Supabase Auth for reliable testing.
+Custom SMTP lifts Supabase's default restriction to project-team addresses, but Supabase and the SMTP provider still enforce sending limits. Follow the [Supabase SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp) and [Resend SMTP settings](https://resend.com/docs/send-with-smtp).
 
 The schema grants content-management access only to the verified account `mohamed.sonic369@gmail.com`. That owner account can add, edit, and delete videos, exams, and files. Other accounts cannot manage shared content.
 

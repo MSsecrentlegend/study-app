@@ -24,8 +24,10 @@ Without a configured backend, progress is saved in the current browser. Accounts
    ```
 
    The anon/public key is intended for browser use. **Never put a service-role key in this file.** Row-level security in the schema protects user progress and restricts shared-content management.
-4. In Supabase Auth, enable email confirmations and configure the site URL plus allowed redirect URLs for your site (for local testing, `http://localhost:8000`). The default **Confirm signup** email link works; custom SMTP is optional.
-5. Reload the site and create your account from **Profile**. Open the confirmation email and click its link to finish signing up. Signed-in progress then syncs with that account across devices.
+4. In Supabase **Authentication > Sign In / Providers**, enable email/password authentication and keep **Confirm email** enabled.
+5. Configure custom SMTP under **Authentication > SMTP Settings**. With Resend, verify a domain you own and add its DNS records, then use host `smtp.resend.com`, port `465` or `587`, username `resend`, your Resend API key as the SMTP password, and a sender address on that verified domain. Keep the key in Supabase only; never put it in website code.
+6. In **Authentication > Email Templates > Confirm signup**, include `{{ .Token }}` so users receive a code to enter in the portal. Configure the Supabase Auth site URL and allowed redirect URLs (for local testing, `http://localhost:8000`).
+7. From **Profile**, create an account, enter the emailed code to verify the address and sign in immediately.
 
 ### Owner-only content management
 
