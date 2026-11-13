@@ -72,11 +72,32 @@
                         <div id="chatMessages" class="chat-messages" aria-live="polite">
                             <div class="empty-state"><div class="empty-state-icon">✦</div><h3 data-i18n="communityReadyTitle">Your study community is ready</h3><p data-i18n="communitySetupText">Connect a shared account and database to enable live messages for everyone.</p><button class="btn btn-primary" type="button" data-open-profile data-i18n="setUpAccount">Set up an account</button></div>
                         </div>
-                        <form id="chatForm" class="chat-composer">
-                            <label class="sr-only" for="chatInput" data-i18n="writeMessage">Write a message</label>
-                            <input id="chatInput" type="text" maxlength="1000" placeholder="Write a message..." data-i18n-placeholder="writeMessage" disabled>
-                            <button class="btn btn-primary" type="submit" disabled><span data-i18n="send">Send</span><span aria-hidden="true">↗</span></button>
-                        </form>
+                        <div class="chat-composer-area">
+                            <div id="chatEmojiPicker" class="chat-emoji-picker hidden" role="group" aria-label="Emoji picker" data-i18n-aria-label="emojiPicker">
+                                <button type="button" data-emoji="😀" aria-label="😀">😀</button>
+                                <button type="button" data-emoji="😂" aria-label="😂">😂</button>
+                                <button type="button" data-emoji="🥰" aria-label="🥰">🥰</button>
+                                <button type="button" data-emoji="😊" aria-label="😊">😊</button>
+                                <button type="button" data-emoji="😍" aria-label="😍">😍</button>
+                                <button type="button" data-emoji="🤔" aria-label="🤔">🤔</button>
+                                <button type="button" data-emoji="😎" aria-label="😎">😎</button>
+                                <button type="button" data-emoji="😭" aria-label="😭">😭</button>
+                                <button type="button" data-emoji="🙏" aria-label="🙏">🙏</button>
+                                <button type="button" data-emoji="👏" aria-label="👏">👏</button>
+                                <button type="button" data-emoji="👍" aria-label="👍">👍</button>
+                                <button type="button" data-emoji="❤️" aria-label="❤️">❤️</button>
+                                <button type="button" data-emoji="🎉" aria-label="🎉">🎉</button>
+                                <button type="button" data-emoji="✨" aria-label="✨">✨</button>
+                                <button type="button" data-emoji="🔥" aria-label="🔥">🔥</button>
+                                <button type="button" data-emoji="💯" aria-label="💯">💯</button>
+                            </div>
+                            <form id="chatForm" class="chat-composer">
+                                <button id="chatEmojiToggle" class="chat-emoji-toggle" type="button" aria-label="Add emoji" aria-expanded="false" aria-controls="chatEmojiPicker" data-i18n-aria-label="addEmoji" disabled>😀</button>
+                                <label class="sr-only" for="chatInput" data-i18n="writeMessage">Write a message</label>
+                                <input id="chatInput" type="text" maxlength="1000" placeholder="Write a message..." data-i18n-placeholder="writeMessage" disabled>
+                                <button class="btn btn-primary" type="submit" disabled><span data-i18n="send">Send</span><span aria-hidden="true">↗</span></button>
+                            </form>
+                        </div>
                         <p class="chat-note" data-i18n="communitySetupNote">Live chat is unavailable until shared backend credentials are configured.</p>
                     </div>
                 </section>
@@ -337,6 +358,12 @@
             <div class="modal-content onboarding-modal">
                 <div class="modal-header"><h2 id="tutorialTitle" data-i18n="tutorialTitle">A quick tour</h2><button class="modal-close" id="closeTutorial" type="button" aria-label="Close" data-i18n-aria-label="closeWelcome">&times;</button></div>
                 <div class="modal-body"><p id="tutorialStepText"></p><div class="tutorial-progress" id="tutorialProgress"></div><div class="onboarding-actions"><button id="tutorialPrevious" class="btn btn-secondary" type="button" data-i18n="previous">← Previous</button><button id="tutorialNext" class="btn btn-primary" type="button" data-i18n="next">Next →</button><button id="tutorialSkip" class="text-button" type="button" data-i18n="skipTutorial">Skip tour</button></div></div>
+            </div>
+        </div>
+        <div id="chatProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="chatProfileTitle">
+            <div class="modal-content">
+                <div class="modal-header"><h2 id="chatProfileTitle"></h2><button class="modal-close" id="closeChatProfile" type="button" aria-label="Close" data-i18n-aria-label="closeWelcome">&times;</button></div>
+                <div class="modal-body"><p id="chatProfileBio" class="chat-profile-bio" aria-live="polite"></p></div>
             </div>
         </div>
     </div>

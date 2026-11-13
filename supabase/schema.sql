@@ -86,6 +86,23 @@ $$;
 revoke all on function public.is_platform_admin() from public;
 grant execute on function public.is_platform_admin() to authenticated;
 
+create or replace function public.get_chat_avatar_paths(p_user_ids uuid[])
+returns table (user_id uuid, avatar_path text)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select profile.id, profile.avatar_path
+    from public.user_profiles profile
+    where profile.id = any(p_user_ids)
+      and profile.avatar_path is not null
+      and (select auth.uid()) is not null;
+$$;
+
+revoke all on function public.get_chat_avatar_paths(uuid[]) from public, anon, authenticated;
+grant execute on function public.get_chat_avatar_paths(uuid[]) to authenticated;
+
 create table if not exists public.chat_messages (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references public.profiles (id) on delete cascade,
@@ -174,7 +191,7 @@ revoke all on public.profiles, public.user_profiles, public.chat_messages, publi
 grant update (display_name) on public.profiles to authenticated;
 grant select on public.profiles to authenticated;
 grant select, insert, update on public.user_profiles to authenticated;
-grant select, insert, delete on public.chat_messages to authenticated;
+grant select, insert, update (body), delete on public.chat_messages to authenticated;
 grant select, insert, update, delete on public.videos to authenticated;
 grant select, insert, update, delete on public.exams to authenticated;
 grant select, insert, update, delete on public.study_files to authenticated;
@@ -214,6 +231,11 @@ create policy "Authenticated users can read chat"
 drop policy if exists "Users can post as themselves" on public.chat_messages;
 create policy "Users can post as themselves"
     on public.chat_messages for insert to authenticated
+    with check (user_id = (select auth.uid()));
+drop policy if exists "Authors can edit their own chat messages" on public.chat_messages;
+create policy "Authors can edit their own chat messages"
+    on public.chat_messages for update to authenticated
+    using (user_id = (select auth.uid()))
     with check (user_id = (select auth.uid()));
 drop policy if exists "Authors or admins can delete chat messages" on public.chat_messages;
 create policy "Authors or admins can delete chat messages"
@@ -313,9 +335,10 @@ create policy "Owner can update study resource objects"
     with check (bucket_id = 'study-resources' and (select public.is_platform_admin()));
 
 drop policy if exists "Users can read their own profile pictures" on storage.objects;
-create policy "Users can read their own profile pictures"
+drop policy if exists "Authenticated users can read chat profile pictures" on storage.objects;
+create policy "Authenticated users can read chat profile pictures"
     on storage.objects for select to authenticated
-    using (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text);
+    using (bucket_id = 'profile-avatars');
 drop policy if exists "Users can upload their own profile pictures" on storage.objects;
 create policy "Users can upload their own profile pictures"
     on storage.objects for insert to authenticated

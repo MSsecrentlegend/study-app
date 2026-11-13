@@ -2679,6 +2679,11 @@ const PORTAL_TRANSLATIONS = {
         signInToChat: 'Sign in to join the chat', signInToChatNote: 'Sign in to read and send messages in the shared group.',
         cloudSynced: 'Synced across devices', signInToSync: 'Sign in to sync your progress', cloudSyncOn: 'Cloud sync is on',
         connected: 'Connected', noChatMessages: 'Be the first to start the conversation.',
+        addEmoji: 'Add emoji', emojiPicker: 'Emoji picker',
+        viewChatProfileFor: 'View {name}’s profile', profileLoading: 'Loading profile…',
+        privateChatProfile: 'This learner keeps their profile private.', emptyChatProfileBio: 'No bio has been added.',
+        chatProfileLoadFailed: 'Could not load this profile.', confirmDeleteChatMessage: 'Delete this message?',
+        messageRequired: 'A message cannot be empty.', editMessagePlaceholder: 'Edit your message...',
         signInFirst: 'Sign in to join the shared group.', communityRespect: 'Keep the conversation kind and on topic.',
         adminOnly: 'Only platform admins can publish shared content.', chooseExamFile: 'Choose a valid exam JSON file.',
         invalidExamFile: 'Exam JSON must contain a title and valid multiple-choice questions.',
@@ -2702,7 +2707,7 @@ const PORTAL_TRANSLATIONS = {
         notificationSettings: 'Notification settings', inAppNotifications: 'Show in-app notifications',
         chatNotifications: 'Community message alerts', announcementNotifications: 'Owner announcement alerts',
         privacySettings: 'Privacy', publicProfile: 'Share my bio with signed-in learners',
-        privacyHint: 'Your email address and password are never shown on your public profile.',
+        privacyHint: 'Your email and password are never shown. Profile pictures are visible to signed-in chat members.',
         accountManagement: 'Account management', accountManagementHint: 'Change your password or sign out from your profile.',
         replayTutorial: 'Show the tutorial again', themeSwitchToDark: 'Dark mode', themeSwitchToLight: 'Light mode',
         avatarTooLarge: 'Profile pictures must be 2 MB or smaller.',
@@ -2792,6 +2797,11 @@ const PORTAL_TRANSLATIONS = {
         signInToChat: 'سجل الدخول للانضمام إلى المحادثة', signInToChatNote: 'سجل الدخول لقراءة الرسائل وإرسالها في المجموعة.',
         cloudSynced: 'متزامن بين الأجهزة', signInToSync: 'سجل الدخول لمزامنة تقدمك', cloudSyncOn: 'المزامنة السحابية مفعلة',
         connected: 'متصل', noChatMessages: 'ابدأ المحادثة وكن أول من يرسل رسالة.',
+        addEmoji: 'إضافة رمز تعبيري', emojiPicker: 'اختيار رمز تعبيري',
+        viewChatProfileFor: 'عرض الملف الشخصي لـ{name}', profileLoading: 'جارٍ تحميل الملف الشخصي…',
+        privateChatProfile: 'هذا المتعلم يحتفظ بملفه الشخصي خاصاً.', emptyChatProfileBio: 'لم تتم إضافة نبذة.',
+        chatProfileLoadFailed: 'تعذر تحميل هذا الملف الشخصي.', confirmDeleteChatMessage: 'هل تريد حذف هذه الرسالة؟',
+        messageRequired: 'لا يمكن أن تكون الرسالة فارغة.', editMessagePlaceholder: 'عدّل رسالتك...',
         signInFirst: 'سجل الدخول للانضمام إلى المجموعة.', communityRespect: 'يرجى الحفاظ على حوار لطيف ومرتبط بالدراسة.',
         adminOnly: 'يمكن لمسؤولي المنصة فقط نشر المحتوى المشترك.', chooseExamFile: 'اختر ملف JSON صالحاً للاختبار.',
         invalidExamFile: 'يجب أن يحتوي JSON على عنوان وأسئلة اختيار من متعدد صالحة.',
@@ -2815,7 +2825,7 @@ const PORTAL_TRANSLATIONS = {
         notificationSettings: 'إعدادات الإشعارات', inAppNotifications: 'عرض الإشعارات داخل الموقع',
         chatNotifications: 'تنبيهات رسائل المجتمع', announcementNotifications: 'تنبيهات إعلانات المالك',
         privacySettings: 'الخصوصية', publicProfile: 'مشاركة نبذتي مع المتعلمين المسجلين',
-        privacyHint: 'لن يظهر بريدك الإلكتروني أو كلمة مرورك في ملفك الشخصي العام.',
+        privacyHint: 'لن يظهر بريدك الإلكتروني أو كلمة مرورك. تظهر الصور الشخصية لأعضاء المحادثة المسجلين.',
         accountManagement: 'إدارة الحساب', accountManagementHint: 'غيّر كلمة المرور أو سجّل الخروج من ملفك الشخصي.',
         replayTutorial: 'عرض الشرح مرة أخرى', themeSwitchToDark: 'الوضع الداكن', themeSwitchToLight: 'الوضع الفاتح',
         avatarTooLarge: 'يجب ألا يتجاوز حجم الصورة الشخصية 2 ميغابايت.',
@@ -3004,6 +3014,11 @@ window.PortalUI = {
     tutorialActive: false,
     lastTutorialUserId: null,
     lastSessionUserId: null,
+    chatEditingMessageId: null,
+    chatSavingMessageId: null,
+    chatNeedsInitialScroll: false,
+    chatProfileTrigger: null,
+    chatProfileRequestId: 0,
 
     subjectName(subject) {
         const key = {
@@ -3196,6 +3211,14 @@ window.PortalUI = {
 
     setPage(tab) {
         this.currentTab = tab;
+        if (tab === 'community' && this.chatNeedsInitialScroll) {
+            window.requestAnimationFrame(() => {
+                if (this.currentTab !== 'community' || !this.chatNeedsInitialScroll) return;
+                const container = document.getElementById('chatMessages');
+                container.scrollTop = container.scrollHeight;
+                this.chatNeedsInitialScroll = false;
+            });
+        }
         const pageTitle = document.getElementById('pageTitle');
         const pageDescription = document.getElementById('pageDescription');
         const titleKey = tab === 'dashboard' ? 'dashboard' : tab;
@@ -4014,7 +4037,7 @@ window.PortalUI = {
             const input = document.getElementById('chatInput');
             const body = input.value.trim();
             if (!body || !PortalBackend.user) return;
-            const button = event.currentTarget.querySelector('button');
+            const button = event.currentTarget.querySelector('button[type="submit"]');
             button.disabled = true;
             try {
                 await PortalBackend.sendChat(body);
@@ -4026,6 +4049,84 @@ window.PortalUI = {
                 button.disabled = !PortalBackend.user;
             }
         });
+        const input = document.getElementById('chatInput');
+        const toggle = document.getElementById('chatEmojiToggle');
+        const picker = document.getElementById('chatEmojiPicker');
+        const closePicker = (returnFocus = false) => {
+            picker.classList.add('hidden');
+            toggle.setAttribute('aria-expanded', 'false');
+            if (returnFocus) toggle.focus();
+        };
+        toggle?.addEventListener('click', () => {
+            const isOpening = picker.classList.contains('hidden');
+            picker.classList.toggle('hidden', !isOpening);
+            toggle.setAttribute('aria-expanded', String(isOpening));
+            if (isOpening) picker.querySelector('button')?.focus();
+        });
+        picker?.addEventListener('click', event => {
+            const emojiButton = event.target.closest('button[data-emoji]');
+            if (!emojiButton) return;
+            const emoji = emojiButton.dataset.emoji;
+            const start = input.selectionStart ?? input.value.length;
+            const end = input.selectionEnd ?? input.value.length;
+            const nextValue = `${input.value.slice(0, start)}${emoji}${input.value.slice(end)}`;
+            if (nextValue.length > input.maxLength) return;
+            input.setRangeText(emoji, start, end, 'end');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+            closePicker();
+        });
+        document.addEventListener('click', event => {
+            if (!picker.classList.contains('hidden')
+                && !picker.contains(event.target)
+                && event.target !== toggle) {
+                closePicker();
+            }
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !picker.classList.contains('hidden')) {
+                closePicker(true);
+            }
+        });
+        const modal = document.getElementById('chatProfileModal');
+        const close = () => {
+            modal.classList.add('hidden');
+            this.chatProfileRequestId++;
+            this.chatProfileTrigger?.focus();
+            this.chatProfileTrigger = null;
+        };
+        document.getElementById('closeChatProfile')?.addEventListener('click', close);
+        modal?.addEventListener('click', event => {
+            if (event.target === modal) close();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !modal.classList.contains('hidden')) close();
+        });
+    },
+
+    async openChatProfile(userId, fallbackName, trigger) {
+        const modal = document.getElementById('chatProfileModal');
+        const title = document.getElementById('chatProfileTitle');
+        const bio = document.getElementById('chatProfileBio');
+        const requestId = ++this.chatProfileRequestId;
+        this.chatProfileTrigger = trigger;
+        title.textContent = fallbackName;
+        bio.textContent = this.text('profileLoading');
+        modal.classList.remove('hidden');
+        document.getElementById('closeChatProfile').focus();
+        try {
+            const profile = await PortalBackend.loadChatProfile(userId);
+            if (requestId !== this.chatProfileRequestId || modal.classList.contains('hidden')) return;
+            title.textContent = profile.displayName || fallbackName;
+            bio.textContent = profile.bioVisible
+                ? (profile.bio || this.text('emptyChatProfileBio'))
+                : this.text('privateChatProfile');
+        } catch (error) {
+            if (requestId !== this.chatProfileRequestId || modal.classList.contains('hidden')) return;
+            bio.textContent = this.text('chatProfileLoadFailed');
+            this.showBackendError(error.message);
+            console.error('Learner profile loading failed:', error);
+        }
     },
 
     authErrorMessage(error) {
@@ -4098,7 +4199,8 @@ window.PortalUI = {
             document.getElementById('profileVisibilityToggle').disabled = true;
         }
         document.getElementById('chatInput').disabled = !user;
-        document.querySelector('#chatForm button').disabled = !user;
+        document.querySelector('#chatForm button[type="submit"]').disabled = !user;
+        document.getElementById('chatEmojiToggle').disabled = !user;
         document.getElementById('chatConnection').textContent = this.text(user ? 'connected' : 'signInToChat');
         document.querySelector('.chat-note').textContent = this.text(
             user ? 'communityRespect' : (PortalBackend.configured ? 'signInToChatNote' : 'communitySetupNote')
@@ -4172,8 +4274,12 @@ window.PortalUI = {
         FilesManager.render();
     },
 
-    renderChatMessages(messages) {
+    renderChatMessages(messages, forceBottom = false) {
         const container = document.getElementById('chatMessages');
+        const isVisible = container.clientHeight > 0;
+        const wasAtBottom = isVisible
+            && container.scrollHeight - container.scrollTop - container.clientHeight < 48;
+        const previousScrollTop = container.scrollTop;
         container.replaceChildren();
         if (!messages.length) {
             const empty = document.createElement('div');
@@ -4188,22 +4294,137 @@ window.PortalUI = {
             messages.forEach(message => {
                 const row = document.createElement('article');
                 row.className = `chat-message${message.user_id === PortalBackend.user?.id ? ' own-message' : ''}`;
-                const author = document.createElement('strong');
                 const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
-                author.textContent = profile?.display_name || this.text('guest');
+                const authorName = profile?.display_name || this.text('guest');
+                const heading = document.createElement('div');
+                heading.className = 'chat-message-heading';
+                const avatar = document.createElement('span');
+                avatar.className = 'chat-avatar';
+                avatar.setAttribute('aria-hidden', 'true');
+                const avatarInitial = document.createElement('span');
+                avatarInitial.textContent = Array.from(authorName.trim())[0]?.toLocaleUpperCase() || 'L';
+                avatar.appendChild(avatarInitial);
+                if (message.avatar_url) {
+                    const image = document.createElement('img');
+                    image.src = message.avatar_url;
+                    image.alt = '';
+                    image.loading = 'lazy';
+                    image.onerror = () => image.remove();
+                    avatar.appendChild(image);
+                }
+                const author = document.createElement('button');
+                author.type = 'button';
+                author.className = 'chat-author';
+                author.textContent = authorName;
+                author.setAttribute('aria-label', this.text('viewChatProfileFor', { name: authorName }));
+                author.addEventListener('click', () => this.openChatProfile(message.user_id, authorName, author));
                 const time = document.createElement('time');
                 time.dateTime = message.created_at;
                 time.textContent = new Intl.DateTimeFormat(
                     this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
                     { hour: 'numeric', minute: '2-digit' }
                 ).format(new Date(message.created_at));
-                const body = document.createElement('p');
-                body.textContent = message.body;
-                row.append(author, time, body);
+                heading.append(avatar, author, time);
+                const isOwnMessage = message.user_id === PortalBackend.user?.id;
+                if (isOwnMessage && this.chatEditingMessageId !== message.id) {
+                    const actions = document.createElement('div');
+                    actions.className = 'chat-message-actions';
+                    const editButton = document.createElement('button');
+                    editButton.type = 'button';
+                    editButton.dataset.i18n = 'edit';
+                    editButton.textContent = this.text('edit');
+                    editButton.addEventListener('click', () => {
+                        this.chatEditingMessageId = message.id;
+                        this.renderChatMessages(messages);
+                        document.querySelector('.chat-edit-form textarea')?.focus();
+                    });
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.dataset.i18n = 'delete';
+                    deleteButton.textContent = this.text('delete');
+                    deleteButton.addEventListener('click', async () => {
+                        if (!window.confirm(this.text('confirmDeleteChatMessage'))) return;
+                        deleteButton.disabled = true;
+                        try {
+                            await PortalBackend.deleteChatMessage(message.id);
+                        } catch (error) {
+                            deleteButton.disabled = false;
+                            this.showBackendError(error.message);
+                            console.error('Chat message deletion failed:', error);
+                        }
+                    });
+                    actions.append(editButton, deleteButton);
+                    heading.appendChild(actions);
+                }
+                row.appendChild(heading);
+                if (isOwnMessage && this.chatEditingMessageId === message.id) {
+                    const form = document.createElement('form');
+                    form.className = 'chat-edit-form';
+                    const textarea = document.createElement('textarea');
+                    textarea.maxLength = 1000;
+                    textarea.required = true;
+                    textarea.placeholder = this.text('editMessagePlaceholder');
+                    textarea.dataset.i18nPlaceholder = 'editMessagePlaceholder';
+                    textarea.value = message.body;
+                    textarea.setAttribute('aria-label', this.text('editMessagePlaceholder'));
+                    textarea.dataset.i18nAriaLabel = 'editMessagePlaceholder';
+                    const controls = document.createElement('div');
+                    controls.className = 'chat-edit-actions';
+                    const saveButton = document.createElement('button');
+                    saveButton.type = 'submit';
+                    saveButton.className = 'btn btn-primary';
+                    saveButton.dataset.i18n = 'saveChanges';
+                    saveButton.textContent = this.text('saveChanges');
+                    const cancelButton = document.createElement('button');
+                    cancelButton.type = 'button';
+                    cancelButton.className = 'btn btn-secondary';
+                    cancelButton.dataset.i18n = 'cancel';
+                    cancelButton.textContent = this.text('cancel');
+                    cancelButton.addEventListener('click', () => {
+                        this.chatEditingMessageId = null;
+                        this.renderChatMessages(messages);
+                    });
+                    controls.append(saveButton, cancelButton);
+                    form.append(textarea, controls);
+                    form.addEventListener('submit', async event => {
+                        event.preventDefault();
+                        const body = textarea.value.trim();
+                        if (!body) {
+                            this.showBackendError(this.text('messageRequired'));
+                            textarea.focus();
+                            return;
+                        }
+                        saveButton.disabled = true;
+                        this.chatEditingMessageId = null;
+                        this.chatSavingMessageId = message.id;
+                        try {
+                            await PortalBackend.editChatMessage(message.id, body);
+                        } catch (error) {
+                            this.chatEditingMessageId = message.id;
+                            saveButton.disabled = false;
+                            this.showBackendError(error.message);
+                            console.error('Chat message update failed:', error);
+                        } finally {
+                            this.chatSavingMessageId = null;
+                        }
+                    });
+                    row.appendChild(form);
+                } else {
+                    const body = document.createElement('p');
+                    body.textContent = message.body;
+                    row.appendChild(body);
+                }
                 container.appendChild(row);
             });
         }
-        container.scrollTop = container.scrollHeight;
+        const shouldScrollToBottom = forceBottom || wasAtBottom || this.chatNeedsInitialScroll;
+        if (shouldScrollToBottom && !isVisible) this.chatNeedsInitialScroll = true;
+        if (isVisible && shouldScrollToBottom) {
+            container.scrollTop = container.scrollHeight;
+            this.chatNeedsInitialScroll = false;
+        } else if (isVisible) {
+            container.scrollTop = previousScrollTop;
+        }
         this.renderNotifications(messages);
     },
 

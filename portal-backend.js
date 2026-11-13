@@ -6,6 +6,7 @@ window.PortalBackend = {
     profile: null,
     announcements: [],
     chatMessages: [],
+    chatAvatarCache: new Map(),
     configured: false,
     suppressProgressSync: false,
     progressSyncTimer: null,
@@ -65,10 +66,17 @@ window.PortalBackend = {
     async applySession(session) {
         const sessionUpdateId = ++this.sessionUpdateId;
         const nextUser = session?.user || null;
-        if (this.user?.id !== nextUser?.id) {
+        const userChanged = this.user?.id !== nextUser?.id;
+        if (userChanged) {
             window.clearTimeout(this.progressSyncTimer);
             this.progressSyncTimer = null;
             this.chatMessages = [];
+            this.chatAvatarCache.clear();
+            if (this.ui) {
+                this.ui.chatEditingMessageId = null;
+                this.ui.chatSavingMessageId = null;
+                this.ui.chatNeedsInitialScroll = Boolean(nextUser);
+            }
         }
         this.user = nextUser;
         this.storage.setUserScope(this.user?.id);
@@ -118,7 +126,7 @@ window.PortalBackend = {
             await Promise.all([
                 this.loadProgress(),
                 this.loadContent(),
-                this.loadChat()
+                this.loadChat({ forceBottom: userChanged })
             ]);
             await this.loadExamResults();
             if (sessionUpdateId !== this.sessionUpdateId) return;
@@ -627,7 +635,7 @@ window.PortalBackend = {
         }
     },
 
-    async loadChat() {
+    async loadChat({ forceBottom = false } = {}) {
         if (!this.user) return;
         const { data, error } = await this.client
             .from('chat_messages')
@@ -638,13 +646,63 @@ window.PortalBackend = {
             this.ui.showBackendError(error.message);
             return;
         }
-        this.chatMessages = data.reverse();
-        this.ui.renderChatMessages(this.chatMessages);
+        const messages = data.reverse();
+        try {
+            this.chatMessages = await this.addChatAvatars(messages);
+        } catch (avatarError) {
+            console.error('Chat avatar loading failed:', avatarError);
+            this.ui.showBackendError(avatarError.message);
+            this.chatMessages = messages.map(message => ({ ...message, avatar_url: null }));
+        }
+        this.ui.renderChatMessages(this.chatMessages, forceBottom);
+    },
+
+    async addChatAvatars(messages) {
+        const userIds = [...new Set(messages.map(message => message.user_id))];
+        if (!userIds.length) return messages;
+        const { data: avatarProfiles, error: profileError } = await this.client
+            .rpc('get_chat_avatar_paths', { p_user_ids: userIds });
+        if (profileError) throw profileError;
+        const avatarPathByUserId = new Map(
+            (avatarProfiles || []).map(profile => [profile.user_id, profile.avatar_path])
+        );
+        const avatarPaths = [...new Set(avatarPathByUserId.values())];
+        const now = Date.now();
+        const pathsToSign = avatarPaths.filter(path => {
+            const cached = this.chatAvatarCache.get(path);
+            return !cached || cached.expiresAt <= now + 60000;
+        });
+        if (pathsToSign.length) {
+            const { data, error } = await this.client.storage
+                .from('profile-avatars')
+                .createSignedUrls(pathsToSign, 3600);
+            if (error) throw error;
+            for (const signedUrl of data || []) {
+                if (!signedUrl.signedUrl) {
+                    throw new Error(signedUrl.error?.message || 'A chat profile picture could not be loaded.');
+                }
+                this.chatAvatarCache.set(signedUrl.path, {
+                    url: signedUrl.signedUrl,
+                    expiresAt: Date.now() + 55 * 60 * 1000
+                });
+            }
+            if (pathsToSign.some(path => !this.chatAvatarCache.has(path))) {
+                throw new Error('A chat profile picture could not be loaded.');
+            }
+        }
+        return messages.map(message => {
+            const avatarPath = avatarPathByUserId.get(message.user_id);
+            return {
+                ...message,
+                avatar_url: avatarPath ? this.chatAvatarCache.get(avatarPath)?.url || null : null
+            };
+        });
     },
 
     startChatPolling() {
         window.clearInterval(this.chatPollTimer);
         this.chatPollTimer = window.setInterval(() => {
+            if (this.ui.chatEditingMessageId || this.ui.chatSavingMessageId) return;
             this.loadChat().catch(error => {
                 console.error('Chat refresh failed:', error);
                 this.ui.showBackendError(error.message);
@@ -658,6 +716,58 @@ window.PortalBackend = {
             body
         });
         if (error) throw error;
+        await this.loadChat({ forceBottom: true });
+    },
+
+    async editChatMessage(messageId, body) {
+        if (!this.user) throw new Error('Sign in to edit your messages.');
+        const normalizedBody = body.trim();
+        if (!normalizedBody || normalizedBody.length > 1000) {
+            throw new Error('Messages must be between 1 and 1000 characters.');
+        }
+        const { data, error } = await this.client.from('chat_messages')
+            .update({ body: normalizedBody })
+            .eq('id', messageId)
+            .eq('user_id', this.user.id)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('The message could not be edited. It may have been deleted.');
         await this.loadChat();
+    },
+
+    async deleteChatMessage(messageId) {
+        if (!this.user) throw new Error('Sign in to delete your messages.');
+        const { data, error } = await this.client.from('chat_messages')
+            .delete()
+            .eq('id', messageId)
+            .eq('user_id', this.user.id)
+            .select('id')
+            .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('The message could not be deleted. It may have already been removed.');
+        await this.loadChat();
+    },
+
+    async loadChatProfile(userId) {
+        if (!this.user) throw new Error('Sign in to view learner profiles.');
+        const [profileResult, detailsResult] = await Promise.all([
+            this.client.from('profiles')
+                .select('display_name')
+                .eq('id', userId)
+                .maybeSingle(),
+            this.client.from('user_profiles')
+                .select('bio')
+                .eq('id', userId)
+                .maybeSingle()
+        ]);
+        if (profileResult.error) throw profileResult.error;
+        if (detailsResult.error) throw detailsResult.error;
+        if (!profileResult.data) throw new Error('This learner profile is unavailable.');
+        return {
+            displayName: profileResult.data.display_name,
+            bio: detailsResult.data?.bio || '',
+            bioVisible: Boolean(detailsResult.data)
+        };
     }
 };

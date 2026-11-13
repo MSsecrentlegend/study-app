@@ -30,7 +30,7 @@ Without a configured backend, progress is saved in the current browser. Accounts
 
 ### Owner-only content management
 
-The platform owner is assigned explicitly by the project owner using the account UUID in Supabase, rather than by an unverified email address. See [BACKEND-SETUP.md](./BACKEND-SETUP.md) for the one-time SQL step. The owner can publish announcements and manage shared videos, exams, and files; other learners cannot manage shared content. Use [`sample-quiz.json`](./sample-quiz.json) as a starting point for exam question formatting. Uploaded files and profile pictures use private Supabase Storage buckets.
+The platform owner is assigned explicitly by the project owner using the account UUID in Supabase, rather than by an unverified email address. See [BACKEND-SETUP.md](./BACKEND-SETUP.md) for the one-time SQL step. The owner can publish announcements and manage shared videos, exams, and files; other learners cannot manage shared content. Use [`sample-quiz.json`](./sample-quiz.json) as a starting point for exam question formatting. Uploaded files and profile pictures use private Supabase Storage buckets. Profile pictures are shown to signed-in chat participants; profile bios follow each user's privacy setting.
 
 ## Using the portal
 

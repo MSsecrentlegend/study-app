@@ -19,7 +19,7 @@ update public.profiles set is_admin = true where id = '<your-auth-user-uuid>';
 
 Only the project owner should run this. The platform owner can publish announcements and manage shared videos, exams, and files. Other accounts cannot manage shared content.
 
-The schema also creates the `user_profiles` table and private `profile-avatars` bucket for profile bios and pictures. Rerun the schema after updates. Profile bio visibility is controlled by each user's privacy setting.
+The schema also creates the `user_profiles` table and private `profile-avatars` bucket for profile bios and pictures. Rerun the schema after updates. Profile bio visibility is controlled by each user's privacy setting; profile pictures are visible to signed-in chat participants.
 
 Learning progress is stored separately for each signed-in account; the browser also keeps a separate local cache per account. Guest progress remains on the device and is not merged into an account.
 
