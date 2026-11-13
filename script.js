@@ -4064,9 +4064,9 @@ window.PortalUI = {
             if (isOpening) picker.querySelector('button')?.focus();
         });
         picker?.addEventListener('click', event => {
-            const emojiButton = event.target.closest('button[data-emoji]');
+            const emojiButton = event.target.closest('#chatEmojiPicker button');
             if (!emojiButton) return;
-            const emoji = emojiButton.dataset.emoji;
+            const emoji = emojiButton.dataset.emoji || emojiButton.textContent.trim();
             const start = input.selectionStart ?? input.value.length;
             const end = input.selectionEnd ?? input.value.length;
             const nextValue = `${input.value.slice(0, start)}${emoji}${input.value.slice(end)}`;
