@@ -13,7 +13,7 @@ Without a configured backend, progress is saved in the current browser. Accounts
 ## Enable accounts and cross-device sync
 
 1. Create a Supabase project.
-2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql). If you already set up the portal, run it again to apply the owner-only permissions.
+2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql). Rerun it after schema updates, then follow [BACKEND-SETUP.md](./BACKEND-SETUP.md) to assign the platform owner.
 3. In [`supabase-config.js`](./supabase-config.js), set the project URL and the project's **anon/public** key:
 
    ```js
@@ -24,14 +24,13 @@ Without a configured backend, progress is saved in the current browser. Accounts
    ```
 
    The anon/public key is intended for browser use. **Never put a service-role key in this file.** Row-level security in the schema protects user progress and restricts shared-content management.
-4. In Supabase **Authentication > Sign In / Providers**, enable email/password authentication and keep **Confirm email** enabled.
-5. Configure custom SMTP under **Authentication > SMTP Settings**. With Resend, verify a domain you own and add its DNS records, then use host `smtp.resend.com`, port `465` or `587`, username `resend`, your Resend API key as the SMTP password, and a sender address on that verified domain. Keep the key in Supabase only; never put it in website code.
-6. In **Authentication > Email Templates > Confirm signup**, include `{{ .Token }}` so users receive a code to enter in the portal. Configure the Supabase Auth site URL and allowed redirect URLs (for local testing, `http://localhost:8000`).
-7. From **Profile**, create an account, enter the emailed code to verify the address and sign in immediately.
+4. In Supabase **Authentication > Sign In / Providers**, enable email/password authentication and turn **Confirm email** off so users sign in immediately without a confirmation page. Email addresses will not be verified; see [BACKEND-SETUP.md](./BACKEND-SETUP.md) for security implications and owner setup.
+5. Set the Supabase Auth **Site URL** and allowed redirect URLs to your deployed portal URL. Add `http://localhost:8000` while testing locally.
+6. Create an account from **Profile**. Custom SMTP is optional for signup; it is only needed if you want Supabase to send recovery or email-change messages.
 
 ### Owner-only content management
 
-Only the verified `mohamed.sonic369@gmail.com` account is designated as platform owner. The schema grants that account sole permission to add, edit, or delete shared videos, exams, and files; other learners can sign up and use the portal but cannot manage content. Existing administrator flags for other accounts are cleared when the schema is applied. Keep the owner email unchanged in the schema unless you intentionally want to transfer ownership. Use [`sample-quiz.json`](./sample-quiz.json) as a starting point for exam question formatting. Uploaded files are stored in the private `study-resources` bucket created by the schema.
+The platform owner is assigned explicitly by the project owner using the account UUID in Supabase, rather than by an unverified email address. See [BACKEND-SETUP.md](./BACKEND-SETUP.md) for the one-time SQL step. The owner can publish announcements and manage shared videos, exams, and files; other learners cannot manage shared content. Use [`sample-quiz.json`](./sample-quiz.json) as a starting point for exam question formatting. Uploaded files and profile pictures use private Supabase Storage buckets.
 
 ## Using the portal
 
@@ -41,6 +40,7 @@ Only the verified `mohamed.sonic369@gmail.com` account is designated as platform
 - **Exams:** answer one question at a time and review previous results.
 - **Files:** preview supported PDFs, text, Markdown, and images, or download them.
 - **Profile:** manage account details and choose English or Arabic in Settings.
+- **Settings:** new accounts start in dark mode and Arabic; change either preference at any time.
 
 ## Deployment notes
 

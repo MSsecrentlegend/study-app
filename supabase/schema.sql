@@ -7,6 +7,20 @@ create table if not exists public.profiles (
     created_at timestamptz not null default now()
 );
 
+create table if not exists public.user_profiles (
+    id uuid primary key references auth.users (id) on delete cascade,
+    bio text not null default '' check (char_length(bio) <= 500),
+    avatar_path text,
+    is_public boolean not null default true,
+    updated_at timestamptz not null default now()
+);
+
+alter table public.user_profiles drop column if exists website;
+
+insert into public.user_profiles (id)
+select id from auth.users
+on conflict (id) do nothing;
+
 create or replace function public.create_profile_for_new_user()
 returns trigger
 language plpgsql
@@ -18,32 +32,28 @@ begin
     values (
         new.id,
         coalesce(nullif(new.raw_user_meta_data ->> 'display_name', ''), 'Learner'),
-        coalesce(lower(new.email) = 'mohamed.sonic369@gmail.com' and new.email_confirmed_at is not null, false)
+        false
     )
     on conflict (id) do nothing;
     return new;
 end;
 $$;
 
-create or replace function public.sync_platform_owner_role()
+create or replace function public.create_user_profile_for_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-    update public.profiles
-    set is_admin = coalesce(
-        lower(new.email) = 'mohamed.sonic369@gmail.com' and new.email_confirmed_at is not null,
-        false
-    )
-    where id = new.id;
+    insert into public.user_profiles (id) values (new.id)
+    on conflict (id) do nothing;
     return new;
 end;
 $$;
 
 revoke all on function public.create_profile_for_new_user() from public;
-revoke all on function public.sync_platform_owner_role() from public;
+revoke all on function public.create_user_profile_for_new_user() from public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -51,9 +61,12 @@ create trigger on_auth_user_created
     for each row execute procedure public.create_profile_for_new_user();
 
 drop trigger if exists on_auth_user_owner_role_updated on auth.users;
-create trigger on_auth_user_owner_role_updated
-    after update of email, email_confirmed_at on auth.users
-    for each row execute procedure public.sync_platform_owner_role();
+drop function if exists public.sync_platform_owner_role();
+
+drop trigger if exists on_auth_user_profile_created on auth.users;
+create trigger on_auth_user_profile_created
+    after insert on auth.users
+    for each row execute procedure public.create_user_profile_for_new_user();
 
 create or replace function public.is_platform_admin()
 returns boolean
@@ -65,24 +78,13 @@ as $$
     select exists (
         select 1
         from public.profiles p
-        join auth.users u on u.id = p.id
         where p.id = (select auth.uid())
           and p.is_admin
-          and lower(u.email) = 'mohamed.sonic369@gmail.com'
-          and u.email_confirmed_at is not null
     );
 $$;
 
 revoke all on function public.is_platform_admin() from public;
 grant execute on function public.is_platform_admin() to authenticated;
-
-update public.profiles p
-set is_admin = coalesce(
-    lower(u.email) = 'mohamed.sonic369@gmail.com' and u.email_confirmed_at is not null,
-    false
-)
-from auth.users u
-where u.id = p.id;
 
 create table if not exists public.chat_messages (
     id uuid primary key default gen_random_uuid(),
@@ -149,24 +151,37 @@ create unique index if not exists exam_results_attempt_id_idx
     on public.exam_results (attempt_id)
     where attempt_id is not null;
 
+create table if not exists public.announcements (
+    id uuid primary key default gen_random_uuid(),
+    title text not null check (char_length(title) between 1 and 120),
+    body text not null check (char_length(body) between 1 and 2000),
+    created_by uuid references public.profiles (id) on delete set null,
+    created_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
+alter table public.user_profiles enable row level security;
 alter table public.chat_messages enable row level security;
 alter table public.videos enable row level security;
 alter table public.exams enable row level security;
 alter table public.study_files enable row level security;
 alter table public.user_progress enable row level security;
 alter table public.exam_results enable row level security;
+alter table public.announcements enable row level security;
 
-revoke all on public.profiles, public.chat_messages, public.videos, public.exams, public.study_files, public.user_progress, public.exam_results
+revoke all on public.profiles, public.user_profiles, public.chat_messages, public.videos, public.exams, public.study_files, public.user_progress, public.exam_results, public.announcements
     from public, anon, authenticated;
 grant update (display_name) on public.profiles to authenticated;
 grant select on public.profiles to authenticated;
+grant select, insert, update on public.user_profiles to authenticated;
 grant select, insert, delete on public.chat_messages to authenticated;
 grant select, insert, update, delete on public.videos to authenticated;
 grant select, insert, update, delete on public.exams to authenticated;
 grant select, insert, update, delete on public.study_files to authenticated;
 grant select, insert, update on public.user_progress to authenticated;
 grant select, insert on public.exam_results to authenticated;
+grant select on public.announcements to anon, authenticated;
+grant insert, update, delete on public.announcements to authenticated;
 revoke all on storage.objects from public, anon, authenticated;
 grant select, insert, update, delete on storage.objects to authenticated;
 
@@ -176,6 +191,20 @@ create policy "Authenticated users can view profiles"
 drop policy if exists "Users can update their own display name" on public.profiles;
 create policy "Users can update their own display name"
     on public.profiles for update to authenticated
+    using (id = (select auth.uid()))
+    with check (id = (select auth.uid()));
+
+drop policy if exists "Users can read visible profiles" on public.user_profiles;
+create policy "Users can read visible profiles"
+    on public.user_profiles for select to authenticated
+    using (id = (select auth.uid()) or is_public);
+drop policy if exists "Users can create their own profile details" on public.user_profiles;
+create policy "Users can create their own profile details"
+    on public.user_profiles for insert to authenticated
+    with check (id = (select auth.uid()));
+drop policy if exists "Users can update their own profile details" on public.user_profiles;
+create policy "Users can update their own profile details"
+    on public.user_profiles for update to authenticated
     using (id = (select auth.uid()))
     with check (id = (select auth.uid()));
 
@@ -244,8 +273,22 @@ create policy "Users can create their own exam results"
     on public.exam_results for insert to authenticated
     with check (user_id = (select auth.uid()));
 
+drop policy if exists "Anyone can read announcements" on public.announcements;
+create policy "Anyone can read announcements"
+    on public.announcements for select to anon, authenticated
+    using (true);
+drop policy if exists "Platform owner can manage announcements" on public.announcements;
+create policy "Platform owner can manage announcements"
+    on public.announcements for all to authenticated
+    using ((select public.is_platform_admin()))
+    with check ((select public.is_platform_admin()));
+
 insert into storage.buckets (id, name, public)
 values ('study-resources', 'study-resources', false)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('profile-avatars', 'profile-avatars', false)
 on conflict (id) do nothing;
 
 drop policy if exists "Authenticated users can read study resource objects" on storage.objects;
@@ -268,3 +311,21 @@ create policy "Owner can update study resource objects"
     on storage.objects for update to authenticated
     using (bucket_id = 'study-resources' and (select public.is_platform_admin()))
     with check (bucket_id = 'study-resources' and (select public.is_platform_admin()));
+
+drop policy if exists "Users can read their own profile pictures" on storage.objects;
+create policy "Users can read their own profile pictures"
+    on storage.objects for select to authenticated
+    using (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text);
+drop policy if exists "Users can upload their own profile pictures" on storage.objects;
+create policy "Users can upload their own profile pictures"
+    on storage.objects for insert to authenticated
+    with check (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text);
+drop policy if exists "Users can update their own profile pictures" on storage.objects;
+create policy "Users can update their own profile pictures"
+    on storage.objects for update to authenticated
+    using (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text)
+    with check (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text);
+drop policy if exists "Users can delete their own profile pictures" on storage.objects;
+create policy "Users can delete their own profile pictures"
+    on storage.objects for delete to authenticated
+    using (bucket_id = 'profile-avatars' and split_part(name, '/', 1) = (select auth.uid())::text);

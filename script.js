@@ -1735,9 +1735,45 @@ class UIController {
             storage.set('settings', settings);
         });
 
+        const settings = storage.get('settings', {});
+        document.getElementById('soundToggle').checked = settings.soundEnabled !== false;
+        document.getElementById('themeSelect').value = settings.theme || 'dark';
+        PortalUI.applyTheme(settings.theme || 'dark', storage, false);
         document.getElementById('themeSelect').addEventListener('change', (e) => {
-            document.body.classList.toggle('dark-theme', e.target.value === 'dark');
+            PortalUI.applyTheme(e.target.value, storage);
         });
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            const current = storage.get('settings', {}).theme || 'dark';
+            PortalUI.applyTheme(current === 'dark' ? 'light' : 'dark', storage);
+        });
+
+        [
+            ['notificationsToggle', 'notificationsEnabled'],
+            ['chatNotificationsToggle', 'chatNotifications'],
+            ['announcementNotificationsToggle', 'announcementNotifications']
+        ].forEach(([id, key]) => {
+            const checkbox = document.getElementById(id);
+            checkbox.checked = settings[key] !== false;
+            checkbox.addEventListener('change', () => {
+                const nextSettings = storage.get('settings', {});
+                nextSettings[key] = checkbox.checked;
+                storage.set('settings', nextSettings);
+                PortalUI.renderNotifications(PortalBackend.chatMessages || []);
+            });
+        });
+
+        document.getElementById('profileVisibilityToggle').addEventListener('change', async event => {
+            const checkbox = event.currentTarget;
+            try {
+                await PortalBackend.updateProfileVisibility(checkbox.checked);
+            } catch (error) {
+                checkbox.checked = !checkbox.checked;
+                PortalUI.showFormMessage(document.getElementById('profileEditMessage'), error.message, 'error');
+                console.error('Profile privacy update failed:', error);
+            }
+        });
+
+        document.getElementById('replayTutorial').addEventListener('click', () => PortalUI.startTutorial(true));
     }
 }
 
@@ -2572,7 +2608,7 @@ const PORTAL_TRANSLATIONS = {
     en: {
         metaDescription: 'Luma Study — your calm, connected learning space', mainNavigation: 'Main navigation',
         closeVideo: 'Close video', youtubePlayer: 'YouTube video player', closeFileViewer: 'Close file viewer', filePreview: 'File preview',
-        closeSettings: 'Close settings', changeLanguage: 'Change language', english: 'English', arabic: 'Arabic',
+        closeSettings: 'Close settings', closeWelcome: 'Close', changeLanguage: 'Change language', english: 'English', arabic: 'Arabic',
         enableSound: 'Enable sound notifications', theme: 'Theme:', light: 'Light', dark: 'Dark',
         madeWithLove: 'Made with ❤️ by',
         enterYourName: 'Please enter your name:', nameExample: 'e.g., John Doe', startQuiz: 'Start quiz',
@@ -2620,7 +2656,7 @@ const PORTAL_TRANSLATIONS = {
         noFilesYet: 'No shared files are available yet.', filesSetupText: 'Study books and resources will appear here once they are added.',
         viewFile: 'Preview', downloadFile: 'Download',
         addVideo: 'Add video', videoTitle: 'Video title', youtubeTitleAuto: 'Fetched from YouTube', subject: 'Subject', youtubeUrl: 'YouTube link',
-        videoLocalNotice: 'Only the verified platform owner can publish shared videos. Configure the backend to enable content management.',
+        videoLocalNotice: 'Only the platform owner can publish shared videos. Configure the backend and assign an owner account to enable content management.',
         saveVideo: 'Save video', cancel: 'Cancel', filterBySubject: 'Filter by subject', allSubjects: 'All subjects',
         fetchingVideoTitle: 'Getting the title from YouTube…', videoTitleLoaded: 'YouTube title loaded.',
         videoTitleUnavailable: 'Could not get this video title from YouTube. Check the link and try again.',
@@ -2635,10 +2671,8 @@ const PORTAL_TRANSLATIONS = {
         accountSetupRequired: 'Account service is not configured yet. Your account has not been created.',
         signIn: 'Sign in', noAccount: 'Need an account?', alreadyHaveAccountShort: 'Already registered?',
         newPassword: 'New password (optional)', saveChanges: 'Save changes', accountSettings: 'Account settings',
-        verificationCode: 'Verification code', verifyEmail: 'Verify email', resendVerificationCode: 'Resend code',
-        accountCreated: 'Account created and signed in.', emailCodeSent: 'Enter the code sent to your email to finish creating your account. If you do not receive it, request another code.',
-        emailCodeResent: 'A new code was sent. Check your email.', authRateLimit: 'Too many requests. Please wait a while before trying again.',
-        invalidEmail: 'Enter a valid email address.', invalidVerificationCode: 'Enter the code from your email.',
+        accountCreated: 'Account created and signed in.', authRateLimit: 'Too many requests. Please wait a while before trying again.',
+        invalidEmail: 'Enter a valid email address.',
         signInSuccess: 'Signed in successfully.', invalidCredentials: 'Email or password is incorrect.',
         accountExists: 'An account already exists for this email.', passwordTooShort: 'Use a password with at least 8 characters.',
         unexpectedError: 'Something went wrong. Please try again.', profileUpdated: 'Profile updated.',
@@ -2653,12 +2687,41 @@ const PORTAL_TRANSLATIONS = {
         uploadFile: 'Upload file', fileDetailsRequired: 'Choose a file and enter its title.',
         unsupportedFileType: 'Use a PDF, text, Markdown, or image file.', fileUploaded: 'File shared with all learners.',
         videoPublished: 'Video published for all learners.', videoUpdated: 'Video updated.', examUpdated: 'Exam updated.', examDeleted: 'Exam deleted.',
-        fileUpdated: 'File updated.', fileDeleted: 'File deleted.'
+        fileUpdated: 'File updated.', fileDeleted: 'File deleted.',
+        tools: 'Tools', toolsIntro: 'Helpful study tools will live here.', toolsComingSoon: 'Tools are coming soon',
+        toolsEmptyText: 'We’ll add useful learning tools here in a future update.',
+        bio: 'Bio', bioPlaceholder: 'Tell other learners a little about yourself',
+        profilePicture: 'Profile picture',
+        fromTheOwner: 'FROM THE OWNER', announcements: 'Announcements', newAnnouncement: 'New announcement',
+        announcementTitle: 'Announcement title', announcementMessage: 'Write an update for all learners...',
+        publishAnnouncement: 'Publish', noAnnouncements: 'No announcements yet.',
+        announcementPublished: 'Announcement published for all learners.',
+        announcementDeleted: 'Announcement deleted.', announcementRequired: 'Enter a title and message.',
+        confirmDeleteAnnouncement: 'Delete this announcement?',
+        markAllRead: 'Mark all read', notificationsCount: '{count} unread notifications',
+        notificationSettings: 'Notification settings', inAppNotifications: 'Show in-app notifications',
+        chatNotifications: 'Community message alerts', announcementNotifications: 'Owner announcement alerts',
+        privacySettings: 'Privacy', publicProfile: 'Share my bio with signed-in learners',
+        privacyHint: 'Your email address and password are never shown on your public profile.',
+        accountManagement: 'Account management', accountManagementHint: 'Change your password or sign out from your profile.',
+        replayTutorial: 'Show the tutorial again', themeSwitchToDark: 'Dark mode', themeSwitchToLight: 'Light mode',
+        avatarTooLarge: 'Profile pictures must be 2 MB or smaller.',
+        invalidAvatarType: 'Choose a JPG, PNG, or WebP profile picture.',
+        welcomeTitle: 'Welcome to Luma Study',
+        welcomeDescription: 'Create an account to sync your learning between devices, or explore the study space first.',
+        exploreFirst: 'Explore first', tutorialTitle: 'A quick tour',
+        tutorialDashboard: 'Your dashboard brings together study progress, announcements, recent messages, and upcoming exams.',
+        tutorialExams: 'Open Exams to take a quiz, review your results, and see upcoming exams.',
+        tutorialResources: 'Use Videos for lessons and Files for shared books and study resources.',
+        tutorialCommunity: 'Community is the shared chat. Your profile button is at the bottom of the sidebar; Tools is ready for future features.',
+        tutorialSettings: 'Use the sun/moon button to change the theme. Settings includes language, notifications, privacy, and tutorial options.',
+        skipTutorial: 'Skip tour', finishTutorial: 'Finish',
+        disableEmailConfirmation: 'Email confirmation is still enabled in Supabase. Turn it off to sign users in immediately.'
     },
     ar: {
         metaDescription: 'لوما للدراسة — مساحة تعلم هادئة ومترابطة', mainNavigation: 'التنقل الرئيسي',
         closeVideo: 'إغلاق الفيديو', youtubePlayer: 'مشغل فيديو يوتيوب', closeFileViewer: 'إغلاق عارض الملفات', filePreview: 'معاينة الملف',
-        closeSettings: 'إغلاق الإعدادات', changeLanguage: 'تغيير اللغة', english: 'الإنجليزية', arabic: 'العربية',
+        closeSettings: 'إغلاق الإعدادات', closeWelcome: 'إغلاق', changeLanguage: 'تغيير اللغة', english: 'الإنجليزية', arabic: 'العربية',
         enableSound: 'تفعيل إشعارات الصوت', theme: 'المظهر:', light: 'فاتح', dark: 'داكن',
         madeWithLove: 'صُنع بكل ❤️ بواسطة',
         enterYourName: 'يرجى إدخال اسمك:', nameExample: 'مثال: أحمد محمد', startQuiz: 'ابدأ الاختبار',
@@ -2706,7 +2769,7 @@ const PORTAL_TRANSLATIONS = {
         noFilesYet: 'لا توجد ملفات مشتركة حالياً.', filesSetupText: 'ستظهر كتب الدراسة والمصادر هنا عند إضافتها.',
         viewFile: 'معاينة', downloadFile: 'تنزيل',
         addVideo: 'إضافة فيديو', videoTitle: 'عنوان الفيديو', youtubeTitleAuto: 'يُجلب من يوتيوب', subject: 'المادة', youtubeUrl: 'رابط يوتيوب',
-        videoLocalNotice: 'مالك المنصة المؤكد وحده يستطيع نشر الفيديوهات المشتركة. أعد إعداد الخادم لتفعيل إدارة المحتوى.',
+        videoLocalNotice: 'مالك المنصة وحده يستطيع نشر الفيديوهات المشتركة. أعد إعداد الخادم وعيّن حساباً للمالك لتفعيل إدارة المحتوى.',
         saveVideo: 'حفظ الفيديو', cancel: 'إلغاء', filterBySubject: 'تصفية حسب المادة', allSubjects: 'كل المواد',
         fetchingVideoTitle: 'جارٍ جلب العنوان من يوتيوب…', videoTitleLoaded: 'تم جلب عنوان الفيديو من يوتيوب.',
         videoTitleUnavailable: 'تعذر جلب عنوان الفيديو من يوتيوب. تحقق من الرابط وحاول مرة أخرى.',
@@ -2721,10 +2784,8 @@ const PORTAL_TRANSLATIONS = {
         accountSetupRequired: 'خدمة الحساب غير مُعدة بعد. لم يتم إنشاء حسابك.',
         signIn: 'تسجيل الدخول', noAccount: 'تحتاج إلى حساب؟', alreadyHaveAccountShort: 'لديك حساب بالفعل؟',
         newPassword: 'كلمة مرور جديدة (اختياري)', saveChanges: 'حفظ التغييرات', accountSettings: 'إعدادات الحساب',
-        verificationCode: 'رمز التأكيد', verifyEmail: 'تأكيد البريد الإلكتروني', resendVerificationCode: 'إعادة إرسال الرمز',
-        accountCreated: 'تم إنشاء الحساب وتسجيل الدخول.', emailCodeSent: 'أدخل الرمز المرسل إلى بريدك لإكمال إنشاء الحساب. إذا لم يصلك، اطلب رمزاً جديداً.',
-        emailCodeResent: 'تم إرسال رمز جديد. تحقق من بريدك.', authRateLimit: 'طلبات كثيرة. انتظر قليلاً قبل المحاولة مجدداً.',
-        invalidEmail: 'أدخل بريداً إلكترونياً صالحاً.', invalidVerificationCode: 'أدخل الرمز المرسل إلى بريدك.',
+        accountCreated: 'تم إنشاء الحساب وتسجيل الدخول.', authRateLimit: 'طلبات كثيرة. انتظر قليلاً قبل المحاولة مجدداً.',
+        invalidEmail: 'أدخل بريداً إلكترونياً صالحاً.',
         signInSuccess: 'تم تسجيل الدخول بنجاح.', invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
         accountExists: 'يوجد حساب مسجل بهذا البريد الإلكتروني.', passwordTooShort: 'استخدم كلمة مرور من 8 أحرف على الأقل.',
         unexpectedError: 'حدث خطأ. حاول مرة أخرى.', profileUpdated: 'تم تحديث الملف الشخصي.',
@@ -2739,12 +2800,43 @@ const PORTAL_TRANSLATIONS = {
         uploadFile: 'رفع الملف', fileDetailsRequired: 'اختر ملفاً وأدخل عنوانه.',
         unsupportedFileType: 'استخدم PDF أو ملفاً نصياً أو Markdown أو صورة.', fileUploaded: 'تمت مشاركة الملف مع جميع المتعلمين.',
         videoPublished: 'تم نشر الفيديو لجميع المتعلمين.', videoUpdated: 'تم تحديث الفيديو.', examUpdated: 'تم تحديث الاختبار.', examDeleted: 'تم حذف الاختبار.',
-        fileUpdated: 'تم تحديث الملف.', fileDeleted: 'تم حذف الملف.'
+        fileUpdated: 'تم تحديث الملف.', fileDeleted: 'تم حذف الملف.',
+        tools: 'الأدوات', toolsIntro: 'ستتوفر أدوات الدراسة المفيدة هنا.', toolsComingSoon: 'الأدوات قادمة قريباً',
+        toolsEmptyText: 'سنضيف أدوات تعليمية مفيدة هنا في تحديث مستقبلي.',
+        bio: 'نبذة', bioPlaceholder: 'أخبر المتعلمين قليلاً عن نفسك',
+        profilePicture: 'الصورة الشخصية',
+        fromTheOwner: 'من مالك المنصة', announcements: 'الإعلانات', newAnnouncement: 'إعلان جديد',
+        announcementTitle: 'عنوان الإعلان', announcementMessage: 'اكتب تحديثاً لجميع المتعلمين...',
+        publishAnnouncement: 'نشر', noAnnouncements: 'لا توجد إعلانات بعد.',
+        announcementPublished: 'تم نشر الإعلان لجميع المتعلمين.',
+        announcementDeleted: 'تم حذف الإعلان.', announcementRequired: 'أدخل عنواناً ورسالة.',
+        confirmDeleteAnnouncement: 'هل تريد حذف هذا الإعلان؟',
+        markAllRead: 'تحديد الكل كمقروء', notificationsCount: '{count} إشعار غير مقروء',
+        notificationSettings: 'إعدادات الإشعارات', inAppNotifications: 'عرض الإشعارات داخل الموقع',
+        chatNotifications: 'تنبيهات رسائل المجتمع', announcementNotifications: 'تنبيهات إعلانات المالك',
+        privacySettings: 'الخصوصية', publicProfile: 'مشاركة نبذتي مع المتعلمين المسجلين',
+        privacyHint: 'لن يظهر بريدك الإلكتروني أو كلمة مرورك في ملفك الشخصي العام.',
+        accountManagement: 'إدارة الحساب', accountManagementHint: 'غيّر كلمة المرور أو سجّل الخروج من ملفك الشخصي.',
+        replayTutorial: 'عرض الشرح مرة أخرى', themeSwitchToDark: 'الوضع الداكن', themeSwitchToLight: 'الوضع الفاتح',
+        avatarTooLarge: 'يجب ألا يتجاوز حجم الصورة الشخصية 2 ميغابايت.',
+        invalidAvatarType: 'اختر صورة بصيغة JPG أو PNG أو WebP.',
+        welcomeTitle: 'مرحباً بك في لوما للدراسة',
+        welcomeDescription: 'أنشئ حساباً لمزامنة تعلمك بين الأجهزة، أو استكشف مساحة الدراسة أولاً.',
+        exploreFirst: 'استكشف أولاً', tutorialTitle: 'جولة سريعة',
+        tutorialDashboard: 'تجمع لوحة التحكم تقدمك الدراسي والإعلانات والرسائل الحديثة والاختبارات القادمة.',
+        tutorialExams: 'افتح الاختبارات لأداء الاختبارات ومراجعة النتائج والاطلاع على المواعيد القادمة.',
+        tutorialResources: 'استخدم الفيديوهات للدروس والملفات للكتب ومصادر الدراسة المشتركة.',
+        tutorialCommunity: 'المجتمع هو المحادثة المشتركة. زر ملفك الشخصي أسفل القائمة الجانبية، والأدوات جاهزة للميزات المستقبلية.',
+        tutorialSettings: 'استخدم زر الشمس والقمر لتغيير المظهر. تتضمن الإعدادات اللغة والإشعارات والخصوصية وخيارات الشرح.',
+        skipTutorial: 'تخطي الجولة', finishTutorial: 'إنهاء',
+        disableEmailConfirmation: 'لا يزال تأكيد البريد مفعلاً في Supabase. أوقفه لتسجيل دخول المستخدمين فوراً.'
     }
 };
 
 function updateLanguageUI(lang) {
     const t = LANGUAGES[lang] || LANGUAGES.en;
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) languageSelect.value = lang;
     // Header
     const h1 = document.querySelector('.site-title');
     if (h1) h1.textContent = 'Luma Study';
@@ -2875,6 +2967,9 @@ function updateLanguageUI(lang) {
         PortalUI.renderExams();
         PortalUI.renderExamResults();
         PortalUI.updateDashboard();
+        PortalUI.renderAnnouncements();
+        PortalUI.renderNotifications(PortalBackend.chatMessages || []);
+        PortalUI.syncProfileDisplay();
         FilesManager.render();
     }
     window.subjectsManager?.renderSubjectsList();
@@ -2895,12 +2990,20 @@ window.PortalUI = {
     storage: null,
     videos: [],
     exams: [],
+    announcements: [],
+    notificationEntries: [],
+    announcementToastTimers: new Map(),
+    hasReceivedAnnouncements: false,
+    avatarPreviewUrl: null,
     currentTab: 'dashboard',
     authMode: 'signup',
     editingVideoId: null,
     editingExamId: null,
     editingFile: null,
-    pendingConfirmationEmail: '',
+    tutorialStep: 0,
+    tutorialActive: false,
+    lastTutorialUserId: null,
+    lastSessionUserId: null,
 
     subjectName(subject) {
         const key = {
@@ -2912,13 +3015,115 @@ window.PortalUI = {
     },
 
     text(key, values = {}) {
-        let value = PORTAL_TRANSLATIONS[this.storage?.get('language', 'en') || 'en']?.[key]
+        let value = PORTAL_TRANSLATIONS[this.storage?.get('language', 'ar') || 'ar']?.[key]
             || PORTAL_TRANSLATIONS.en[key]
             || key;
         Object.entries(values).forEach(([name, replacement]) => {
             value = value.replace(`{${name}}`, replacement);
         });
         return value;
+    },
+
+    showFormMessage(element, message, type = '') {
+        if (!element) return;
+        element.textContent = message;
+        element.classList.toggle('success', type === 'success');
+        element.classList.toggle('error', type === 'error');
+    },
+
+    applyTheme(theme, storage = this.storage, persist = true) {
+        const selectedTheme = theme === 'dark' ? 'dark' : 'light';
+        document.body.classList.toggle('dark-theme', selectedTheme === 'dark');
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) themeSelect.value = selectedTheme;
+        if (persist && storage) {
+            const settings = storage.get('settings', {});
+            settings.theme = selectedTheme;
+            storage.set('settings', settings);
+        }
+        const icon = document.getElementById('themeToggleIcon');
+        const label = document.getElementById('themeToggleLabel');
+        const button = document.getElementById('themeToggle');
+        const switchingToDark = selectedTheme === 'light';
+        if (icon) icon.textContent = switchingToDark ? '☾' : '☀';
+        if (label) label.textContent = this.text(switchingToDark ? 'themeSwitchToDark' : 'themeSwitchToLight');
+        if (button) {
+            button.setAttribute('aria-pressed', String(selectedTheme === 'dark'));
+            button.setAttribute('aria-label', this.text(switchingToDark ? 'themeSwitchToDark' : 'themeSwitchToLight'));
+        }
+    },
+
+    bindOnboarding() {
+        const welcomeModal = document.getElementById('welcomeModal');
+        const tutorialModal = document.getElementById('tutorialModal');
+        const dismissWelcome = () => {
+            welcomeModal.classList.add('hidden');
+            localStorage.setItem('lumaWelcomeSeen', 'true');
+        };
+        document.getElementById('closeWelcome').addEventListener('click', dismissWelcome);
+        document.getElementById('welcomeExplore').addEventListener('click', dismissWelcome);
+        document.getElementById('welcomeCreateAccount').addEventListener('click', () => {
+            dismissWelcome();
+            document.querySelector('.tab-btn[data-tab="profile"]')?.click();
+            document.getElementById('profileName').focus();
+        });
+        document.getElementById('closeTutorial').addEventListener('click', () => this.finishTutorial());
+        document.getElementById('tutorialSkip').addEventListener('click', () => this.finishTutorial());
+        document.getElementById('tutorialPrevious').addEventListener('click', () => {
+            this.tutorialStep = Math.max(0, this.tutorialStep - 1);
+            this.renderTutorialStep();
+        });
+        document.getElementById('tutorialNext').addEventListener('click', () => {
+            if (this.tutorialStep >= 4) {
+                this.finishTutorial();
+                return;
+            }
+            this.tutorialStep += 1;
+            this.renderTutorialStep();
+        });
+        [welcomeModal, tutorialModal].forEach(modal => {
+            modal.addEventListener('click', event => {
+                if (event.target !== modal) return;
+                if (modal === welcomeModal) dismissWelcome();
+                else this.finishTutorial();
+            });
+        });
+    },
+
+    startTutorial(force = false) {
+        if (!force && this.storage.get('tutorialCompleted', false)) return;
+        this.tutorialStep = 0;
+        this.tutorialActive = true;
+        document.getElementById('tutorialModal').classList.remove('hidden');
+        this.renderTutorialStep();
+    },
+
+    renderTutorialStep() {
+        const keys = [
+            'tutorialDashboard',
+            'tutorialExams',
+            'tutorialResources',
+            'tutorialCommunity',
+            'tutorialSettings'
+        ];
+        document.getElementById('tutorialStepText').textContent = this.text(keys[this.tutorialStep]);
+        document.getElementById('tutorialProgress').textContent = `${this.tutorialStep + 1} / ${keys.length}`;
+        document.getElementById('tutorialPrevious').disabled = this.tutorialStep === 0;
+        document.getElementById('tutorialNext').textContent = this.text(
+            this.tutorialStep === keys.length - 1 ? 'finishTutorial' : 'next'
+        );
+    },
+
+    finishTutorial() {
+        document.getElementById('tutorialModal').classList.add('hidden');
+        this.tutorialActive = false;
+        if (PortalBackend.user) this.storage.set('tutorialCompleted', true);
+    },
+
+    showWelcomeIfNeeded() {
+        if (!PortalBackend.user && localStorage.getItem('lumaWelcomeSeen') !== 'true') {
+            document.getElementById('welcomeModal').classList.remove('hidden');
+        }
     },
 
     refreshDynamicLabels() {
@@ -2938,6 +3143,7 @@ window.PortalUI = {
         document.getElementById('authHeading').textContent = this.text(
             user ? 'accountSettings' : (this.authMode === 'signup' ? 'createAccount' : 'signIn')
         );
+        this.applyTheme(this.storage.get('settings', {}).theme || 'dark', this.storage, false);
         if (!user) {
             document.getElementById('authSubmit').textContent = this.text(
                 this.authMode === 'signup' ? 'createAccount' : 'signIn'
@@ -2961,7 +3167,9 @@ window.PortalUI = {
         this.bindVideoControls();
         this.bindContentManagement();
         this.bindProfileForm();
+        this.bindAnnouncements();
         this.bindChat();
+        this.bindOnboarding();
         this.bindVideoModal();
         this.bindFileModal();
         this.populateSubjects();
@@ -2972,6 +3180,16 @@ window.PortalUI = {
         this.setPage('dashboard');
         this.updateDate();
         this.syncProfileDisplay();
+        this.renderAnnouncements();
+        this.renderNotifications([]);
+        document.getElementById('notificationToggle')?.addEventListener('click', () => {
+            this.markNotificationsRead();
+            document.querySelector('.tab-btn[data-tab="dashboard"]')?.click();
+            window.setTimeout(() => {
+                document.getElementById('notificationsPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 0);
+        });
+        document.getElementById('markNotificationsRead')?.addEventListener('click', () => this.markNotificationsRead());
         document.getElementById('videoSubjectFilter')?.addEventListener('change', () => this.renderVideos());
         window.PortalBackend.init(this, storage);
     },
@@ -2987,7 +3205,8 @@ window.PortalUI = {
             videos: 'videosIntro',
             exams: 'examIntro',
             files: 'filesIntro',
-            profile: 'profileIntro'
+            profile: 'profileIntro',
+            tools: 'toolsIntro'
         };
         if (pageTitle) pageTitle.textContent = this.text(titleKey);
         if (pageDescription) pageDescription.textContent = this.text(descriptionKeys[tab] || 'dashboardIntro');
@@ -2996,7 +3215,7 @@ window.PortalUI = {
     updateDate() {
         const node = document.getElementById('todayLabel');
         if (!node) return;
-        const lang = this.storage.get('language', 'en');
+        const lang = this.storage.get('language', 'ar');
         node.textContent = new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', {
             weekday: 'short',
             month: 'short',
@@ -3575,7 +3794,7 @@ window.PortalUI = {
             date.textContent = Number.isNaN(parsedDate.getTime())
                 ? ''
                 : new Intl.DateTimeFormat(
-                    this.storage.get('language', 'en') === 'ar' ? 'ar' : 'en',
+                    this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
                     { dateStyle: 'medium' }
                 ).format(parsedDate);
             const score = document.createElement('b');
@@ -3634,7 +3853,7 @@ window.PortalUI = {
             event.preventDefault();
             const message = document.getElementById('authMessage');
             if (!PortalBackend.configured) {
-                message.textContent = this.text('accountSetupRequired');
+                this.showFormMessage(message, this.text('accountSetupRequired'), 'error');
                 return;
             }
             const name = document.getElementById('profileName').value.trim();
@@ -3642,100 +3861,72 @@ window.PortalUI = {
             const password = document.getElementById('profilePassword').value;
             const submit = document.getElementById('authSubmit');
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                message.textContent = this.text('invalidEmail');
+                this.showFormMessage(message, this.text('invalidEmail'), 'error');
                 return;
             }
             submit.disabled = true;
-            message.textContent = '';
+            this.showFormMessage(message, '');
             try {
                 if (this.authMode === 'signup') {
-                    const { session } = await PortalBackend.signUp(name, email, password);
+                    await PortalBackend.signUp(name, email, password);
                     document.getElementById('profilePassword').value = '';
-                    if (session) {
-                        message.textContent = this.text('accountCreated');
-                    } else {
-                        this.pendingConfirmationEmail = email;
-                        document.getElementById('emailVerificationAddress').value = email;
-                        document.getElementById('emailVerificationCode').value = '';
-                        document.getElementById('authForm').classList.add('hidden');
-                        document.getElementById('emailVerificationForm').classList.remove('hidden');
-                        document.getElementById('emailVerificationMessage').textContent = this.text('emailCodeSent');
-                    }
+                    this.showFormMessage(message, this.text('accountCreated'), 'success');
                 } else {
                     await PortalBackend.signIn(email, password);
-                    message.textContent = this.text('signInSuccess');
                     document.getElementById('profilePassword').value = '';
+                    this.showFormMessage(message, this.text('signInSuccess'), 'success');
                 }
             } catch (error) {
-                message.textContent = this.authErrorMessage(error);
+                this.showFormMessage(message, this.authErrorMessage(error), 'error');
                 console.error('Account authentication failed:', error);
             } finally {
                 submit.disabled = false;
             }
         });
-        document.getElementById('emailVerificationForm')?.addEventListener('submit', async event => {
-            event.preventDefault();
-            const email = document.getElementById('emailVerificationAddress').value.trim();
-            const token = document.getElementById('emailVerificationCode').value.trim();
-            const message = document.getElementById('emailVerificationMessage');
-            const submit = document.getElementById('verifyEmailCode');
-            if (!token) {
-                message.textContent = this.text('invalidVerificationCode');
-                return;
-            }
-            submit.disabled = true;
-            try {
-                await PortalBackend.verifySignUpEmail(email, token);
-                this.pendingConfirmationEmail = '';
-                document.getElementById('emailVerificationCode').value = '';
-                message.textContent = this.text('accountCreated');
-            } catch (error) {
-                message.textContent = this.authErrorMessage(error);
-                console.error('Email verification failed:', error);
-            } finally {
-                submit.disabled = false;
-            }
-        });
-        document.getElementById('resendEmailCode')?.addEventListener('click', async event => {
-            const button = event.currentTarget;
-            const email = document.getElementById('emailVerificationAddress').value.trim();
-            const message = document.getElementById('emailVerificationMessage');
-            button.disabled = true;
-            try {
-                await PortalBackend.resendSignUpConfirmation(email);
-                message.textContent = this.text('emailCodeResent');
-            } catch (error) {
-                message.textContent = this.authErrorMessage(error);
-                console.error('Resending signup code failed:', error);
-            } finally {
-                button.disabled = false;
-            }
-        });
         document.getElementById('authModeToggle')?.addEventListener('click', () => {
-            this.pendingConfirmationEmail = '';
-            document.getElementById('emailVerificationForm').classList.add('hidden');
             document.getElementById('authForm').classList.remove('hidden');
             this.authMode = this.authMode === 'signup' ? 'signin' : 'signup';
+            this.showFormMessage(document.getElementById('authMessage'), '');
             this.refreshDynamicLabels();
             document.querySelector('label[for="profileName"]')?.classList.toggle('hidden', this.authMode === 'signin');
             document.getElementById('profileName').classList.toggle('hidden', this.authMode === 'signin');
             document.getElementById('profileName').required = this.authMode === 'signup';
             document.getElementById('profilePassword').autocomplete = this.authMode === 'signup' ? 'new-password' : 'current-password';
         });
+        document.getElementById('profileAvatarFile')?.addEventListener('change', event => {
+            const file = event.currentTarget.files[0];
+            if (!file) return;
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+                this.showFormMessage(
+                    document.getElementById('profileEditMessage'),
+                    this.text(file.size > 2 * 1024 * 1024 ? 'avatarTooLarge' : 'invalidAvatarType'),
+                    'error'
+                );
+                event.currentTarget.value = '';
+                return;
+            }
+            this.setAvatarImages(URL.createObjectURL(file), document.getElementById('profileDisplayName').textContent, true);
+        });
         document.getElementById('profileEditForm')?.addEventListener('submit', async event => {
             event.preventDefault();
             const message = document.getElementById('profileEditMessage');
+            const saveButton = event.currentTarget.querySelector('button[type="submit"]');
+            saveButton.disabled = true;
             try {
                 await PortalBackend.updateProfile({
                     name: document.getElementById('profileEditName').value.trim(),
-                    email: document.getElementById('profileEditEmail').value.trim(),
-                    password: document.getElementById('profileNewPassword').value
+                    bio: document.getElementById('profileBio').value.trim(),
+                    password: document.getElementById('profileNewPassword').value,
+                    avatarFile: document.getElementById('profileAvatarFile').files[0] || null
                 });
                 document.getElementById('profileNewPassword').value = '';
-                message.textContent = this.text('profileUpdated');
+                document.getElementById('profileAvatarFile').value = '';
+                this.showFormMessage(message, this.text('profileUpdated'), 'success');
             } catch (error) {
-                message.textContent = this.authErrorMessage(error);
+                this.showFormMessage(message, this.authErrorMessage(error), 'error');
                 console.error('Profile update failed:', error);
+            } finally {
+                saveButton.disabled = false;
             }
         });
         document.getElementById('signOutButton')?.addEventListener('click', async () => {
@@ -3744,6 +3935,75 @@ window.PortalUI = {
             } catch (error) {
                 this.showBackendError(error.message);
                 console.error('Sign-out failed:', error);
+            }
+        });
+    },
+
+    setAvatarImages(url, name, isPreview = false) {
+        const initial = name.trim().charAt(0).toUpperCase() || 'L';
+        document.getElementById('profileAvatarInitial').textContent = initial;
+        document.getElementById('sidebarAvatarInitial').textContent = initial;
+        const oldPreview = this.avatarPreviewUrl;
+        if (oldPreview) URL.revokeObjectURL(oldPreview);
+        this.avatarPreviewUrl = isPreview ? url : null;
+        [
+            document.getElementById('profileAvatarImage'),
+            document.getElementById('sidebarAvatarImage')
+        ].forEach(image => {
+            image.onerror = () => {
+                image.classList.add('hidden');
+                image.removeAttribute('src');
+                image.parentElement.querySelector('span').classList.remove('hidden');
+            };
+            const initialNode = image.parentElement.querySelector('span');
+            if (url) {
+                image.src = url;
+                image.classList.remove('hidden');
+                initialNode.classList.add('hidden');
+            } else {
+                image.classList.add('hidden');
+                image.removeAttribute('src');
+                initialNode.classList.remove('hidden');
+            }
+        });
+    },
+
+    bindAnnouncements() {
+        const form = document.getElementById('announcementForm');
+        const feedback = document.getElementById('announcementFeedback');
+        document.getElementById('showAnnouncementForm')?.addEventListener('click', () => {
+            form.classList.remove('hidden');
+            document.getElementById('announcementTitle').focus();
+        });
+        document.getElementById('cancelAnnouncement')?.addEventListener('click', () => {
+            form.classList.add('hidden');
+            form.reset();
+            this.showFormMessage(feedback, '');
+        });
+        form?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const title = document.getElementById('announcementTitle').value.trim();
+            const body = document.getElementById('announcementBody').value.trim();
+            const submit = document.getElementById('publishAnnouncement');
+            if (!PortalBackend.configured || !PortalBackend.isAdmin()) {
+                this.showFormMessage(feedback, this.text('ownerOnly'), 'error');
+                return;
+            }
+            if (!title || !body) {
+                this.showFormMessage(feedback, this.text('announcementRequired'), 'error');
+                return;
+            }
+            submit.disabled = true;
+            try {
+                await PortalBackend.publishAnnouncement({ title, body });
+                form.reset();
+                form.classList.add('hidden');
+                this.showFormMessage(feedback, this.text('announcementPublished'), 'success');
+            } catch (error) {
+                this.showFormMessage(feedback, error.message, 'error');
+                console.error('Announcement publishing failed:', error);
+            } finally {
+                submit.disabled = false;
             }
         });
     },
@@ -3770,8 +4030,8 @@ window.PortalUI = {
 
     authErrorMessage(error) {
         const code = error?.code || error?.message || '';
+        if (/email_confirmation_required/i.test(code)) return this.text('disableEmailConfirmation');
         if (/rate.?limit|too many requests/i.test(code)) return this.text('authRateLimit');
-        if (/token has expired|invalid.*token|otp.*expired|invalid.*otp/i.test(code)) return this.text('invalidVerificationCode');
         if (/invalid login credentials/i.test(code)) return this.text('invalidCredentials');
         if (/already registered|user already exists/i.test(code)) return this.text('accountExists');
         if (/password should be at least|password.*characters/i.test(code)) return this.text('passwordTooShort');
@@ -3785,33 +4045,42 @@ window.PortalUI = {
         document.querySelector('.chat-note').textContent =
             this.text(configured ? 'signInToChatNote' : 'communitySetupNote');
         document.getElementById('videoLocalNotice').textContent = this.text('videoLocalNotice');
-        document.getElementById('authMessage').textContent =
-            configured ? '' : this.text('backendSetupNeeded');
+        this.showFormMessage(
+            document.getElementById('authMessage'),
+            configured ? '' : this.text('backendSetupNeeded'),
+            configured ? '' : 'error'
+        );
         const canManage = configured && PortalBackend.isAdmin();
         document.getElementById('showVideoForm').classList.toggle('hidden', !canManage);
         document.getElementById('showExamForm').classList.toggle('hidden', !canManage);
         document.getElementById('showFileForm').classList.toggle('hidden', !canManage);
+        document.getElementById('showAnnouncementForm').classList.toggle('hidden', !canManage);
         document.getElementById('videoAdminForm').classList.add('hidden');
+        if (!configured) this.showWelcomeIfNeeded();
     },
 
     onSessionChanged(user, profile, isAdmin) {
-        const name = profile?.display_name || user?.email?.split('@')[0] || this.text('guest');
-        const initial = name.trim().charAt(0).toUpperCase() || 'L';
+        const profileName = profile?.display_name?.trim();
+        const metadataName = user?.user_metadata?.display_name?.trim();
+        const name = (profileName && profileName !== 'Learner' ? profileName : null)
+            || metadataName
+            || profileName
+            || user?.email?.split('@')[0]
+            || this.text('guest');
         document.getElementById('profileDisplayName').textContent = name;
         document.getElementById('profileEmail').textContent = user?.email || this.text('notSignedIn');
-        document.getElementById('profileAvatar').textContent = initial;
         document.getElementById('sidebarUserName').textContent = name;
-        document.getElementById('sidebarAvatar').textContent = initial;
+        this.setAvatarImages(profile?.avatar_url || '', name);
+        const bioDisplay = document.getElementById('profileBioDisplay');
+        bioDisplay.textContent = profile?.bio || '';
+        bioDisplay.classList.toggle('hidden', !profile?.bio);
         document.getElementById('sidebarAccountState').textContent = this.text(
             user ? 'cloudSynced' : (PortalBackend.configured ? 'signInToSync' : 'localProgress')
         );
         document.querySelector('#syncStatus > span:last-child').textContent = this.text(
             user ? 'cloudSyncOn' : (PortalBackend.configured ? 'signInToSync' : 'deviceOnly')
         );
-        if (user) this.pendingConfirmationEmail = '';
-        const awaitingEmailCode = Boolean(this.pendingConfirmationEmail);
-        document.getElementById('authForm').classList.toggle('hidden', Boolean(user) || awaitingEmailCode);
-        document.getElementById('emailVerificationForm').classList.toggle('hidden', Boolean(user) || !awaitingEmailCode);
+        document.getElementById('authForm').classList.toggle('hidden', Boolean(user));
         document.getElementById('profileEditForm').classList.toggle('hidden', !user);
         document.getElementById('authModeToggle').classList.toggle('hidden', Boolean(user));
         document.getElementById('signOutButton').classList.toggle('hidden', !user);
@@ -3819,8 +4088,14 @@ window.PortalUI = {
             user ? this.text('accountSettings') : this.text(this.authMode === 'signup' ? 'createAccount' : 'signIn');
         document.getElementById('authSetupNotice').classList.toggle('hidden', PortalBackend.configured);
         if (user) {
-            document.getElementById('profileEditName').value = profile?.display_name || '';
+            document.getElementById('profileEditName').value = name;
             document.getElementById('profileEditEmail').value = user.email || '';
+            document.getElementById('profileBio').value = profile?.bio || '';
+            document.getElementById('profileVisibilityToggle').checked = profile?.is_public !== false;
+            document.getElementById('profileVisibilityToggle').disabled = false;
+        } else {
+            document.getElementById('profileVisibilityToggle').checked = true;
+            document.getElementById('profileVisibilityToggle').disabled = true;
         }
         document.getElementById('chatInput').disabled = !user;
         document.querySelector('#chatForm button').disabled = !user;
@@ -3831,6 +4106,7 @@ window.PortalUI = {
         document.getElementById('showExamForm').classList.toggle('hidden', !isAdmin);
         document.getElementById('showFileForm').classList.toggle('hidden', !isAdmin);
         document.getElementById('showVideoForm').classList.toggle('hidden', !isAdmin);
+        document.getElementById('showAnnouncementForm').classList.toggle('hidden', !isAdmin);
         document.getElementById('videoLocalNotice').classList.toggle('hidden', PortalBackend.configured);
         if (PortalBackend.configured && !user) {
             this.videos = [];
@@ -3843,13 +4119,28 @@ window.PortalUI = {
             document.getElementById('examAdminForm').classList.add('hidden');
             document.getElementById('fileAdminForm').classList.add('hidden');
         }
-        this.refreshDynamicLabels();
+        updateLanguageUI(this.storage.get('language', 'ar'));
+        if (user) {
+            if (this.lastTutorialUserId !== user.id && !this.storage.get('tutorialCompleted', false)) {
+                this.startTutorial();
+            }
+            this.lastTutorialUserId = user.id;
+            localStorage.setItem('lumaWelcomeSeen', 'true');
+        } else {
+            if (this.tutorialActive) {
+                document.getElementById('tutorialModal').classList.add('hidden');
+                this.tutorialActive = false;
+            }
+            this.lastTutorialUserId = null;
+            this.showWelcomeIfNeeded();
+        }
+        this.lastSessionUserId = user?.id || null;
     },
 
     showBackendError(message) {
         const authMessage = document.getElementById('authMessage');
         const chatNote = document.querySelector('.chat-note');
-        if (authMessage) authMessage.textContent = message;
+        if (authMessage) this.showFormMessage(authMessage, message, 'error');
         if (chatNote) chatNote.textContent = message;
     },
 
@@ -3857,7 +4148,7 @@ window.PortalUI = {
         this.renderExamResults();
         this.updateDashboard();
         this.syncProfileDisplay();
-        const language = this.storage.get('language', 'en');
+        const language = this.storage.get('language', 'ar');
         updateLanguageUI(language);
     },
 
@@ -3903,7 +4194,7 @@ window.PortalUI = {
                 const time = document.createElement('time');
                 time.dateTime = message.created_at;
                 time.textContent = new Intl.DateTimeFormat(
-                    this.storage.get('language', 'en') === 'ar' ? 'ar' : 'en',
+                    this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
                     { hour: 'numeric', minute: '2-digit' }
                 ).format(new Date(message.created_at));
                 const body = document.createElement('p');
@@ -3916,32 +4207,197 @@ window.PortalUI = {
         this.renderNotifications(messages);
     },
 
+    setAnnouncements(announcements) {
+        const previousIds = new Set(this.announcements.map(item => item.id));
+        this.announcements = announcements || [];
+        if (!this.hasReceivedAnnouncements) {
+            const newest = this.announcements[0];
+            if (newest) this.showAnnouncementToast(newest);
+            this.hasReceivedAnnouncements = true;
+        } else {
+            this.announcements
+                .filter(item => !previousIds.has(item.id))
+                .slice(0, 3)
+                .forEach(item => this.showAnnouncementToast(item));
+        }
+        this.renderAnnouncements();
+        this.renderNotifications(PortalBackend.chatMessages || []);
+    },
+
+    showAnnouncementToast(announcement) {
+        const shownIds = new Set(this.storage.get('shownAnnouncementToastIds', []));
+        if (shownIds.has(announcement.id)) return;
+        shownIds.add(announcement.id);
+        this.storage.set('shownAnnouncementToastIds', [...shownIds].slice(-200));
+
+        const region = document.getElementById('announcementToasts');
+        const toast = document.createElement('button');
+        toast.type = 'button';
+        toast.className = 'announcement-toast';
+        toast.dataset.announcementId = announcement.id;
+        toast.setAttribute('aria-label', announcement.title);
+        const title = document.createElement('strong');
+        title.textContent = announcement.title;
+        const body = document.createElement('span');
+        body.textContent = announcement.body;
+        toast.append(title, body);
+        toast.addEventListener('click', () => {
+            this.markNotificationRead(`announcement:${announcement.id}`);
+            this.dismissAnnouncementToast(announcement.id);
+        });
+        region.appendChild(toast);
+        this.announcementToastTimers.set(
+            announcement.id,
+            window.setTimeout(() => this.dismissAnnouncementToast(announcement.id), 8000)
+        );
+    },
+
+    dismissAnnouncementToast(id) {
+        const timer = this.announcementToastTimers.get(id);
+        if (timer) window.clearTimeout(timer);
+        this.announcementToastTimers.delete(id);
+        document.querySelectorAll('.announcement-toast').forEach(toast => {
+            if (toast.dataset.announcementId === String(id)) toast.remove();
+        });
+    },
+
+    renderAnnouncements() {
+        const container = document.getElementById('announcementsList');
+        if (!container) return;
+        container.replaceChildren();
+        if (!this.announcements.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text('noAnnouncements');
+            container.appendChild(empty);
+            return;
+        }
+        this.announcements.forEach(announcement => {
+            const article = document.createElement('article');
+            article.className = 'announcement-item';
+            const heading = document.createElement('div');
+            heading.className = 'announcement-heading';
+            const title = document.createElement('h4');
+            title.textContent = announcement.title;
+            const time = document.createElement('time');
+            time.dateTime = announcement.created_at;
+            time.textContent = new Intl.DateTimeFormat(
+                this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
+                { dateStyle: 'medium' }
+            ).format(new Date(announcement.created_at));
+            heading.append(title, time);
+            if (PortalBackend.isAdmin()) {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'text-button announcement-delete';
+                remove.textContent = this.text('delete');
+                remove.addEventListener('click', async () => {
+                    if (!window.confirm(this.text('confirmDeleteAnnouncement'))) return;
+                    try {
+                        await PortalBackend.deleteAnnouncement(announcement.id);
+                    } catch (error) {
+                        this.showBackendError(error.message);
+                        console.error('Announcement deletion failed:', error);
+                    }
+                });
+                heading.appendChild(remove);
+            }
+            const body = document.createElement('p');
+            body.textContent = announcement.body;
+            article.append(heading, body);
+            container.appendChild(article);
+        });
+    },
+
     renderNotifications(messages) {
         const container = document.getElementById('dashboardNotifications');
+        if (!container) return;
         container.replaceChildren();
-        const recent = [...messages].reverse().slice(0, 3);
-        if (!recent.length) {
+        const settings = this.storage.get('settings', {});
+        const entries = [];
+        if (settings.notificationsEnabled !== false) {
+            if (settings.announcementNotifications !== false) {
+                this.announcements.slice(0, 10).forEach(item => entries.push({
+                    id: `announcement:${item.id}`,
+                    title: item.title,
+                    body: item.body,
+                    createdAt: item.created_at,
+                    type: 'announcement'
+                }));
+            }
+            if (settings.chatNotifications !== false) {
+                [...messages].slice(-10).forEach(item => {
+                    if (item.user_id === PortalBackend.user?.id) return;
+                    const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+                    entries.push({
+                        id: `message:${item.id}`,
+                        title: profile?.display_name || this.text('guest'),
+                        body: item.body,
+                        createdAt: item.created_at,
+                        type: 'message'
+                    });
+                });
+            }
+        }
+        entries.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+        this.notificationEntries = entries.slice(0, 15);
+        const readIds = new Set(this.storage.get('readNotificationIds', []));
+        const unreadCount = this.notificationEntries.filter(entry => !readIds.has(entry.id)).length;
+        const badge = document.getElementById('notificationBadge');
+        const notificationButton = document.getElementById('notificationToggle');
+        badge.textContent = String(unreadCount);
+        badge.classList.toggle('hidden', unreadCount === 0);
+        notificationButton.setAttribute('aria-label', this.text('notificationsCount', { count: unreadCount }));
+
+        if (!this.notificationEntries.length) {
             container.className = 'empty-inline';
             container.textContent = this.text('noNotifications');
             return;
         }
         container.className = 'notification-list';
-        recent.forEach(message => {
-            const row = document.createElement('p');
-            const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles;
-            row.textContent = `${profile?.display_name || this.text('guest')}: ${message.body}`;
+        this.notificationEntries.forEach(entry => {
+            const row = document.createElement('article');
+            row.className = `notification-item${readIds.has(entry.id) ? '' : ' unread'}`;
+            const heading = document.createElement('strong');
+            heading.textContent = entry.type === 'announcement'
+                ? `${this.text('announcements')}: ${entry.title}`
+                : `${this.text('community')}: ${entry.title}`;
+            const body = document.createElement('p');
+            body.textContent = entry.body;
+            const time = document.createElement('time');
+            time.dateTime = entry.createdAt;
+            time.textContent = new Intl.DateTimeFormat(
+                this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
+                { dateStyle: 'short', timeStyle: 'short' }
+            ).format(new Date(entry.createdAt));
+            row.append(heading, body, time);
             container.appendChild(row);
         });
     },
 
     syncProfileDisplay() {
-        const name = this.storage.get('profileName', '');
-        if (!name) return;
+        if (PortalBackend.user) return;
+        const savedName = this.storage.get('profileName', '');
+        const name = savedName || this.text('guest');
         document.getElementById('sidebarUserName').textContent = name;
-        document.getElementById('sidebarAvatar').textContent = name.trim().charAt(0).toUpperCase();
         document.getElementById('profileDisplayName').textContent = name;
-        document.getElementById('profileAvatar').textContent = name.trim().charAt(0).toUpperCase();
-        document.getElementById('profileName').value = name;
+        document.getElementById('profileEmail').textContent = this.text('notSignedIn');
+        this.setAvatarImages('', name);
+        if (savedName) document.getElementById('profileName').value = savedName;
+    },
+
+    markNotificationsRead() {
+        const readIds = new Set(this.storage.get('readNotificationIds', []));
+        this.notificationEntries.forEach(entry => readIds.add(entry.id));
+        this.storage.set('readNotificationIds', [...readIds].slice(-200));
+        this.renderNotifications(PortalBackend.chatMessages || []);
+    },
+
+    markNotificationRead(id) {
+        const readIds = new Set(this.storage.get('readNotificationIds', []));
+        readIds.add(id);
+        this.storage.set('readNotificationIds', [...readIds].slice(-200));
+        this.renderNotifications(PortalBackend.chatMessages || []);
     },
 
     escapeHtml(value) {
@@ -3979,7 +4435,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ...existing code...
 
     // Language selection
-    const lang = storage.get('language', 'en');
+    const lang = storage.get('language', 'ar');
     const langSelect = document.getElementById('languageSelect');
     if (langSelect) langSelect.value = lang;
 

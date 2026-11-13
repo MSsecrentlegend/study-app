@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,7 +16,18 @@
             <div class="header-content">
                 <h1><img src="Pic.png" alt="" class="logo-icon"> <span class="site-title">Luma Study</span></h1>
             </div>
+            <div class="header-actions">
+                <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="true">
+                    <span id="themeToggleIcon" aria-hidden="true">☀</span>
+                    <span id="themeToggleLabel">Light mode</span>
+                </button>
+                <button id="notificationToggle" class="notification-toggle" type="button" aria-label="Notifications">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg>
+                    <span id="notificationBadge" class="notification-badge hidden">0</span>
+                </button>
+            </div>
         </header>
+        <div id="announcementToasts" class="announcement-toast-region" aria-live="polite" aria-label="Announcements" data-i18n-aria-label="announcements"></div>
 
         <main class="dashboard-main">
             <aside class="app-sidebar">
@@ -27,15 +38,16 @@
                     <button class="tab-btn" data-tab="videos" title="Videos" data-i18n-title="videos"><span class="nav-icon">▷</span><span data-i18n="videos">Videos</span></button>
                     <button class="tab-btn" data-tab="exams" title="Exams" data-i18n-title="exams"><span class="nav-icon">▤</span><span data-i18n="exams">Exams</span></button>
                     <button class="tab-btn" data-tab="files" title="Files" data-i18n-title="files"><span class="nav-icon">▱</span><span data-i18n="files">Files</span></button>
-                    <button class="tab-btn" data-tab="profile" title="Profile" data-i18n-title="profile"><span class="nav-icon">◉</span><span data-i18n="profile">Profile</span></button>
+                    <button class="tab-btn" data-tab="tools" title="Tools" data-i18n-title="tools"><span class="nav-icon">✦</span><span data-i18n="tools">Tools</span></button>
                 </nav>
                 <div class="sidebar-bottom-controls">
                     <button class="sidebar-settings-button" id="settingsToggle" type="button"><span class="nav-icon">⚙</span><span data-i18n="settings">Settings</span></button>
                 </div>
-                <div class="sidebar-account">
-                    <span class="account-avatar" id="sidebarAvatar">L</span>
-                    <span class="account-summary"><strong id="sidebarUserName" data-i18n="guest">Guest learner</strong><small id="sidebarAccountState" data-i18n="localProgress">Progress saved on this device</small></span>
-                </div>
+                <button class="tab-btn sidebar-account" type="button" data-tab="profile" title="Profile" data-i18n-title="profile" aria-label="Open profile" data-i18n-aria-label="profile">
+                    <span class="account-avatar" id="sidebarAvatar"><span id="sidebarAvatarInitial">L</span><img id="sidebarAvatarImage" class="hidden" alt=""></span>
+                    <span class="account-summary"><strong id="sidebarUserName">Guest learner</strong><small id="sidebarAccountState" data-i18n="localProgress">Progress saved on this device</small></span>
+                    <span class="profile-link-icon" aria-hidden="true">↗</span>
+                </button>
             </aside>
 
             <div class="tab-content">
@@ -72,27 +84,22 @@
                 <section id="profile" class="tab-pane">
                     <div class="section-heading"><div><p class="page-eyebrow" data-i18n="yourAccount">YOUR ACCOUNT</p><h2 data-i18n="profile">Profile</h2><p data-i18n="profileIntro">Manage your account and keep your learning in sync.</p></div></div>
                     <div class="profile-layout">
-                        <div class="profile-card profile-summary-card"><div class="profile-avatar" id="profileAvatar">L</div><h3 id="profileDisplayName" data-i18n="guest">Guest learner</h3><p id="profileEmail" data-i18n="notSignedIn">Not signed in</p><span class="sync-status" id="syncStatus"><span></span><span data-i18n="deviceOnly">Device-only mode</span></span></div>
+                        <div class="profile-card profile-summary-card"><div class="profile-avatar" id="profileAvatar"><span id="profileAvatarInitial">L</span><img id="profileAvatarImage" class="hidden" alt=""></div><h3 id="profileDisplayName">Guest learner</h3><p id="profileEmail">Not signed in</p><p id="profileBioDisplay" class="profile-bio hidden"></p><span class="sync-status" id="syncStatus"><span></span><span data-i18n="deviceOnly">Device-only mode</span></span></div>
                         <div class="profile-card auth-card">
                             <div class="auth-card-heading"><div><p class="page-eyebrow" data-i18n="cloudSync">CLOUD SYNC</p><h3 id="authHeading" data-i18n="createAccount">Create your account</h3></div><button id="authModeToggle" class="text-button" type="button" data-i18n="alreadyHaveAccount">I already have an account</button></div>
+                            <p id="authMessage" class="form-message" role="status" aria-live="polite"></p>
                             <div id="authSetupNotice" class="setup-notice"><strong data-i18n="backendSetupNeeded">Backend setup needed</strong><p data-i18n="backendSetupDescription">To enable secure sign-in and sync between devices, create a Supabase project and configure its public project URL and anonymous key. Never put a service-role key in the website.</p></div>
                             <form id="authForm" class="auth-form">
                                 <label for="profileName" data-i18n="name">Name</label><input id="profileName" type="text" autocomplete="name" required>
                                 <label for="profileEmailInput" data-i18n="email">Email</label><input id="profileEmailInput" type="email" autocomplete="email" required>
                                 <label for="profilePassword" data-i18n="password">Password</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="8" required>
-                                <p id="authMessage" class="form-message" role="status"></p>
                                 <button id="authSubmit" class="btn btn-primary" type="submit" data-i18n="createAccount">Create your account</button>
-                            </form>
-                            <form id="emailVerificationForm" class="auth-form hidden">
-                                <label for="emailVerificationAddress" data-i18n="email">Email</label><input id="emailVerificationAddress" type="email" autocomplete="email" readonly required>
-                                <label for="emailVerificationCode" data-i18n="verificationCode">Verification code</label><input id="emailVerificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
-                                <p id="emailVerificationMessage" class="form-message" role="status"></p>
-                                <button id="verifyEmailCode" class="btn btn-primary" type="submit" data-i18n="verifyEmail">Verify email</button>
-                                <button id="resendEmailCode" class="btn btn-secondary" type="button" data-i18n="resendVerificationCode">Resend code</button>
                             </form>
                             <form id="profileEditForm" class="auth-form hidden">
                                 <label for="profileEditName" data-i18n="name">Name</label><input id="profileEditName" type="text" autocomplete="name" required>
-                                <label for="profileEditEmail" data-i18n="email">Email</label><input id="profileEditEmail" type="email" autocomplete="email" required>
+                                <label for="profileEditEmail" data-i18n="email">Email</label><input id="profileEditEmail" type="email" autocomplete="email" readonly>
+                                <label for="profileBio" data-i18n="bio">Bio</label><textarea id="profileBio" maxlength="500" rows="3" data-i18n-placeholder="bioPlaceholder"></textarea>
+                                <label for="profileAvatarFile" data-i18n="profilePicture">Profile picture</label><input id="profileAvatarFile" type="file" accept="image/png,image/jpeg,image/webp">
                                 <label for="profileNewPassword" data-i18n="newPassword">New password (optional)</label><input id="profileNewPassword" type="password" autocomplete="new-password" minlength="8">
                                 <p id="profileEditMessage" class="form-message" role="status"></p>
                                 <div class="profile-form-actions">
@@ -198,6 +205,18 @@
                             <div><p class="page-eyebrow" data-i18n="welcomeBack">WELCOME BACK</p><h2><span data-i18n="readyForToday">Ready for today?</span> <span class="welcome-sparkle">✦</span></h2><p data-i18n="dashboardIntro">A clear view of your learning, all in one calm space.</p></div>
                             <button class="btn btn-light" type="button" data-open-tab="exams"><span data-i18n="browseExams">Browse exams</span><span aria-hidden="true">→</span></button>
                         </div>
+                        <article class="dashboard-panel announcement-panel">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="fromTheOwner">FROM THE OWNER</p><h3 data-i18n="announcements">Announcements</h3></div><button id="showAnnouncementForm" class="btn btn-primary hidden" type="button" data-i18n="newAnnouncement">New announcement</button></div>
+                            <form id="announcementForm" class="admin-content-form hidden">
+                                <label class="sr-only" for="announcementTitle" data-i18n="announcementTitle">Announcement title</label>
+                                <input id="announcementTitle" type="text" maxlength="120" required data-i18n-placeholder="announcementTitle">
+                                <label class="sr-only" for="announcementBody" data-i18n="announcementMessage">Announcement message</label>
+                                <textarea id="announcementBody" rows="3" maxlength="2000" required data-i18n-placeholder="announcementMessage"></textarea>
+                                <div class="form-actions"><button id="publishAnnouncement" class="btn btn-primary" type="submit" data-i18n="publishAnnouncement">Publish</button><button id="cancelAnnouncement" class="btn btn-secondary" type="button" data-i18n="cancel">Cancel</button></div>
+                            </form>
+                            <p id="announcementFeedback" class="form-message" role="status"></p>
+                            <div id="announcementsList" class="announcement-list"><p class="empty-inline" data-i18n="noAnnouncements">No announcements yet.</p></div>
+                        </article>
                         <div class="overview-grid">
                             <article class="overview-card"><span class="overview-icon icon-purple">▤</span><span data-i18n="examsCompleted">Exams completed</span><strong id="dashboardExams">0</strong><small data-i18n="yourCompletedExams">Your completed exams</small></article>
                             <article class="overview-card"><span class="overview-icon icon-blue">▷</span><span data-i18n="videosWatched">Videos watched</span><strong id="dashboardVideos">0</strong><small data-i18n="keepLearning">Keep learning at your pace</small></article>
@@ -207,7 +226,7 @@
                             <article class="dashboard-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="whatsNext">WHAT'S NEXT</p><h3 data-i18n="upcomingExams">Upcoming exams</h3></div><button class="text-button" type="button" data-open-tab="exams" data-i18n="viewAll">View all →</button></div><div id="upcomingExams" class="dashboard-list"><div class="empty-inline" data-i18n="noUpcomingExams">No upcoming exams yet.</div></div></article>
                             <article class="dashboard-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="freshlyAdded">FRESHLY ADDED</p><h3 data-i18n="newVideos">New videos</h3></div><button class="text-button" type="button" data-open-tab="videos" data-i18n="viewAll">View all →</button></div><div id="dashboardNewVideos" class="dashboard-list"><div class="empty-inline" data-i18n="noVideosYet">No videos have been added yet.</div></div></article>
                         </div>
-                        <article class="dashboard-panel notification-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="stayInTheLoop">STAY IN THE LOOP</p><h3 data-i18n="updatesAndMessages">Updates & messages</h3></div><button class="text-button" type="button" data-open-tab="community" data-i18n="openCommunity">Open community →</button></div><div id="dashboardNotifications" class="empty-inline" data-i18n="noNotifications">You’re all caught up.</div></article>
+                        <article id="notificationsPanel" class="dashboard-panel notification-panel"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="stayInTheLoop">STAY IN THE LOOP</p><h3 data-i18n="updatesAndMessages">Updates & messages</h3></div><div class="notification-actions"><button id="markNotificationsRead" class="text-button" type="button" data-i18n="markAllRead">Mark all read</button><button class="text-button" type="button" data-open-tab="community" data-i18n="openCommunity">Open community →</button></div></div><div id="dashboardNotifications" class="empty-inline" data-i18n="noNotifications">You’re all caught up.</div></article>
                     </div>
                 </section>
 
@@ -234,6 +253,11 @@
                             <div id="filesFolders" class="resource-list"></div>
                         </div>
                     </div>
+                </section>
+
+                <section id="tools" class="tab-pane">
+                    <div class="section-heading"><div><p class="page-eyebrow" data-i18n="tools">TOOLS</p><h2 data-i18n="tools">Tools</h2><p data-i18n="toolsIntro">Helpful study tools will live here.</p></div></div>
+                    <div class="dashboard-panel"><div class="empty-state"><div class="empty-state-icon">✦</div><h3 data-i18n="toolsComingSoon">Tools are coming soon</h3><p data-i18n="toolsEmptyText">We’ll add useful learning tools here in a future update.</p></div></div>
                 </section>
 
             </div>
@@ -284,7 +308,35 @@
                             </select>
                         </label>
                     </div>
+                    <div class="setting-item settings-subsection">
+                        <h3 data-i18n="notificationSettings">Notification settings</h3>
+                        <label><input type="checkbox" id="notificationsToggle" checked><span data-i18n="inAppNotifications">Show in-app notifications</span></label>
+                        <label><input type="checkbox" id="chatNotificationsToggle" checked><span data-i18n="chatNotifications">Community message alerts</span></label>
+                        <label><input type="checkbox" id="announcementNotificationsToggle" checked><span data-i18n="announcementNotifications">Owner announcement alerts</span></label>
+                    </div>
+                    <div class="setting-item settings-subsection">
+                        <h3 data-i18n="privacySettings">Privacy</h3>
+                        <label><input type="checkbox" id="profileVisibilityToggle" checked><span data-i18n="publicProfile">Share my bio with signed-in learners</span></label>
+                        <p class="settings-hint" data-i18n="privacyHint">Your email address and password are never shown on your public profile.</p>
+                    </div>
+                    <div class="setting-item settings-subsection">
+                        <h3 data-i18n="accountManagement">Account management</h3>
+                        <p data-i18n="accountManagementHint">Change your password or sign out from your profile.</p>
+                        <button id="replayTutorial" class="btn btn-secondary" type="button" data-i18n="replayTutorial">Show the tutorial again</button>
+                    </div>
                 </div>
+            </div>
+        </div>
+        <div id="welcomeModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+            <div class="modal-content onboarding-modal">
+                <div class="modal-header"><h2 id="welcomeTitle" data-i18n="welcomeTitle">Welcome to Luma Study</h2><button class="modal-close" id="closeWelcome" type="button" aria-label="Close" data-i18n-aria-label="closeWelcome">&times;</button></div>
+                <div class="modal-body"><p data-i18n="welcomeDescription">Create an account to sync your learning between devices, or explore the study space first.</p><div class="onboarding-actions"><button id="welcomeCreateAccount" class="btn btn-primary" type="button" data-i18n="createAccount">Create your account</button><button id="welcomeExplore" class="btn btn-secondary" type="button" data-i18n="exploreFirst">Explore first</button></div></div>
+            </div>
+        </div>
+        <div id="tutorialModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+            <div class="modal-content onboarding-modal">
+                <div class="modal-header"><h2 id="tutorialTitle" data-i18n="tutorialTitle">A quick tour</h2><button class="modal-close" id="closeTutorial" type="button" aria-label="Close" data-i18n-aria-label="closeWelcome">&times;</button></div>
+                <div class="modal-body"><p id="tutorialStepText"></p><div class="tutorial-progress" id="tutorialProgress"></div><div class="onboarding-actions"><button id="tutorialPrevious" class="btn btn-secondary" type="button" data-i18n="previous">← Previous</button><button id="tutorialNext" class="btn btn-primary" type="button" data-i18n="next">Next →</button><button id="tutorialSkip" class="text-button" type="button" data-i18n="skipTutorial">Skip tour</button></div></div>
             </div>
         </div>
     </div>

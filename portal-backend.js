@@ -4,10 +4,14 @@ window.PortalBackend = {
     ui: null,
     user: null,
     profile: null,
+    announcements: [],
+    chatMessages: [],
     configured: false,
     suppressProgressSync: false,
     progressSyncTimer: null,
     chatPollTimer: null,
+    announcementPollTimer: null,
+    sessionUpdateId: 0,
 
     async loadClientLibrary() {
         if (window.supabase?.createClient) return;
@@ -55,37 +59,56 @@ window.PortalBackend = {
     },
 
     isAdmin() {
-        return Boolean(
-            this.profile?.is_admin
-            && this.user?.email?.toLowerCase() === 'mohamed.sonic369@gmail.com'
-        );
+        return Boolean(this.profile?.is_admin);
     },
 
     async applySession(session) {
+        const sessionUpdateId = ++this.sessionUpdateId;
         const nextUser = session?.user || null;
         if (this.user?.id !== nextUser?.id) {
             window.clearTimeout(this.progressSyncTimer);
             this.progressSyncTimer = null;
+            this.chatMessages = [];
         }
         this.user = nextUser;
         this.storage.setUserScope(this.user?.id);
         this.profile = null;
         if (this.user) {
-            const { data, error } = await this.client
-                .from('profiles')
-                .select('id,display_name,is_admin')
-                .eq('id', this.user.id)
-                .maybeSingle();
-            if (error) {
-                this.ui.showBackendError(error.message);
-                return;
+            const [coreProfile, customProfile] = await Promise.all([
+                this.client.from('profiles')
+                    .select('id,display_name,is_admin')
+                    .eq('id', this.user.id)
+                    .maybeSingle(),
+                this.client.from('user_profiles')
+                    .select('bio,avatar_path,is_public')
+                    .eq('id', this.user.id)
+                    .maybeSingle()
+            ]);
+            if (sessionUpdateId !== this.sessionUpdateId) return;
+            if (coreProfile.error) throw coreProfile.error;
+            if (customProfile.error) throw customProfile.error;
+            this.profile = { ...coreProfile.data, ...customProfile.data };
+            if (this.profile.avatar_path) {
+                const { data, error } = await this.client.storage
+                    .from('profile-avatars')
+                    .createSignedUrl(this.profile.avatar_path, 86400);
+                if (error) throw error;
+                this.profile.avatar_url = data.signedUrl;
             }
-            this.profile = data;
         }
+        if (sessionUpdateId !== this.sessionUpdateId) return;
         this.ui.onSessionChanged(this.user, this.profile, this.isAdmin());
+        try {
+            await this.loadAnnouncements();
+        } catch (error) {
+            console.error('Announcement loading failed:', error);
+            this.ui.showBackendError(error.message);
+        }
+        if (sessionUpdateId !== this.sessionUpdateId) return;
         if (!this.user) {
             window.clearInterval(this.chatPollTimer);
             this.chatPollTimer = null;
+            this.chatMessages = [];
             this.ui.renderChatMessages([]);
             this.ui.renderNotifications([]);
             this.ui.setSharedFiles([]);
@@ -98,6 +121,7 @@ window.PortalBackend = {
                 this.loadChat()
             ]);
             await this.loadExamResults();
+            if (sessionUpdateId !== this.sessionUpdateId) return;
             this.startChatPolling();
         } catch (error) {
             console.error('Cloud data loading failed:', error);
@@ -112,22 +136,12 @@ window.PortalBackend = {
             options: { data: { display_name: name } }
         });
         if (error) throw error;
+        if (!data.session) {
+            const confirmationError = new Error('Email confirmation must be disabled for immediate sign-in.');
+            confirmationError.code = 'email_confirmation_required';
+            throw confirmationError;
+        }
         return data;
-    },
-
-    async verifySignUpEmail(email, token) {
-        const { data, error } = await this.client.auth.verifyOtp({
-            email,
-            token,
-            type: 'signup'
-        });
-        if (error) throw error;
-        return data;
-    },
-
-    async resendSignUpConfirmation(email) {
-        const { error } = await this.client.auth.resend({ type: 'signup', email });
-        if (error) throw error;
     },
 
     async signIn(email, password) {
@@ -141,9 +155,14 @@ window.PortalBackend = {
         if (error) throw error;
     },
 
-    async updateProfile({ name, email, password }) {
+    async updateProfile({ name, bio, password, avatarFile }) {
+        if (avatarFile && !['image/jpeg', 'image/png', 'image/webp'].includes(avatarFile.type)) {
+            throw new Error('Choose a JPG, PNG, or WebP profile picture.');
+        }
+        if (avatarFile && avatarFile.size > 2 * 1024 * 1024) {
+            throw new Error('Profile pictures must be 2 MB or smaller.');
+        }
         const updates = { data: { display_name: name } };
-        if (email !== this.user.email) updates.email = email;
         if (password) updates.password = password;
         const { error: authError } = await this.client.auth.updateUser(updates);
         if (authError) throw authError;
@@ -152,7 +171,98 @@ window.PortalBackend = {
             .update({ display_name: name })
             .eq('id', this.user.id);
         if (profileError) throw profileError;
+        const customUpdates = {
+            bio,
+            is_public: this.profile?.is_public !== false,
+            updated_at: new Date().toISOString()
+        };
+        let nextAvatarPath = null;
+        if (avatarFile) {
+            const safeExtension = avatarFile.type === 'image/png' ? 'png'
+                : avatarFile.type === 'image/webp' ? 'webp' : 'jpg';
+            nextAvatarPath = `${this.user.id}/${Date.now()}.${safeExtension}`;
+            const { error: uploadError } = await this.client.storage
+                .from('profile-avatars')
+                .upload(nextAvatarPath, avatarFile, { contentType: avatarFile.type, upsert: false });
+            if (uploadError) throw uploadError;
+            customUpdates.avatar_path = nextAvatarPath;
+        }
+        const { error: customProfileError } = await this.client
+            .from('user_profiles')
+            .update(customUpdates)
+            .eq('id', this.user.id);
+        if (customProfileError) {
+            if (nextAvatarPath) {
+                const { error: cleanupError } = await this.client.storage
+                    .from('profile-avatars')
+                    .remove([nextAvatarPath]);
+                if (cleanupError) console.error('New profile picture cleanup failed:', cleanupError);
+            }
+            throw customProfileError;
+        }
+        const oldAvatarPath = this.profile?.avatar_path;
+        if (nextAvatarPath && oldAvatarPath) {
+            const { error: removeError } = await this.client.storage
+                .from('profile-avatars')
+                .remove([oldAvatarPath]);
+            if (removeError) {
+                throw new Error(`Profile updated, but the previous picture could not be removed: ${removeError.message}`);
+            }
+        }
         await this.applySession((await this.client.auth.getSession()).data.session);
+    },
+
+    async updateProfileVisibility(isPublic) {
+        if (!this.user) throw new Error('Sign in to change profile privacy.');
+        const { error } = await this.client.from('user_profiles')
+            .update({ is_public: Boolean(isPublic), updated_at: new Date().toISOString() })
+            .eq('id', this.user.id);
+        if (error) throw error;
+        if (this.profile) this.profile.is_public = Boolean(isPublic);
+    },
+
+    async loadAnnouncements() {
+        const { data, error } = await this.client
+            .from('announcements')
+            .select('id,title,body,created_at')
+            .order('created_at', { ascending: false })
+            .limit(20);
+        if (error) throw error;
+        this.announcements = data || [];
+        this.ui.setAnnouncements(this.announcements);
+        this.startAnnouncementPolling();
+    },
+
+    startAnnouncementPolling() {
+        if (this.announcementPollTimer) return;
+        this.announcementPollTimer = window.setInterval(() => {
+            this.loadAnnouncements().catch(error => {
+                window.clearInterval(this.announcementPollTimer);
+                this.announcementPollTimer = null;
+                console.error('Announcement refresh failed:', error);
+                this.ui.showBackendError(error.message);
+            });
+        }, 30000);
+    },
+
+    async publishAnnouncement({ title, body }) {
+        if (!this.isAdmin()) throw new Error('Only the platform owner can publish announcements.');
+        const { data, error } = await this.client.from('announcements')
+            .insert({ title, body, created_by: this.user.id })
+            .select('id,title,body,created_at')
+            .single();
+        if (error) throw error;
+        this.announcements = [data, ...this.announcements];
+        this.ui.setAnnouncements(this.announcements);
+        return data;
+    },
+
+    async deleteAnnouncement(id) {
+        if (!this.isAdmin()) throw new Error('Only the platform owner can delete announcements.');
+        const { error } = await this.client.from('announcements').delete().eq('id', id);
+        if (error) throw error;
+        this.announcements = this.announcements.filter(item => item.id !== id);
+        this.ui.setAnnouncements(this.announcements);
     },
 
     async saveExamResult(result) {
@@ -528,7 +638,8 @@ window.PortalBackend = {
             this.ui.showBackendError(error.message);
             return;
         }
-        this.ui.renderChatMessages(data.reverse());
+        this.chatMessages = data.reverse();
+        this.ui.renderChatMessages(this.chatMessages);
     },
 
     startChatPolling() {
