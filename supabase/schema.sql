@@ -290,10 +290,34 @@ drop policy if exists "Users can read their own exam results" on public.exam_res
 create policy "Users can read their own exam results"
     on public.exam_results for select to authenticated
     using (user_id = (select auth.uid()));
+drop policy if exists "Platform owner can read all exam results" on public.exam_results;
+create policy "Platform owner can read all exam results"
+    on public.exam_results for select to authenticated
+    using ((select public.is_platform_admin()));
 drop policy if exists "Users can create their own exam results" on public.exam_results;
 create policy "Users can create their own exam results"
     on public.exam_results for insert to authenticated
     with check (user_id = (select auth.uid()));
+
+create or replace function public.get_exam_leaderboard(p_exam_id uuid)
+returns table (display_name text, average_score numeric)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select profile.display_name, round(avg(result.score)::numeric, 2)
+    from public.exams exam
+    join public.exam_results result on result.exam_id = exam.id
+    join public.profiles profile on profile.id = result.user_id
+    where exam.id = p_exam_id
+      and (select auth.uid()) is not null
+    group by profile.id, profile.display_name
+    order by avg(result.score) desc, profile.display_name asc;
+$$;
+
+revoke all on function public.get_exam_leaderboard(uuid) from public, anon;
+grant execute on function public.get_exam_leaderboard(uuid) to authenticated;
 
 drop policy if exists "Anyone can read announcements" on public.announcements;
 create policy "Anyone can read announcements"

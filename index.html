@@ -142,6 +142,11 @@
                             <div class="form-actions"><button id="publishExamButton" class="btn btn-primary" type="button" data-i18n="publishExam">Publish exam</button><button id="cancelExamButton" class="btn btn-secondary" type="button" data-i18n="cancel">Cancel</button><p id="examFormMessage" class="form-message" role="status"></p></div>
                         </div>
                         <div class="exam-history"><div class="panel-heading"><div><p class="page-eyebrow" data-i18n="yourJourney">YOUR JOURNEY</p><h3 data-i18n="pastResults">Previous results</h3></div></div><div id="examResultsList" class="exam-results-list"></div></div>
+                        <section id="ownerLearnerGrades" class="exam-history hidden" aria-labelledby="ownerGradesHeading">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="ownerView">OWNER VIEW</p><h3 id="ownerGradesHeading" data-i18n="learnerGrades">Learner grades</h3></div></div>
+                            <div id="ownerLearnerList" class="exam-results-list"></div>
+                            <div id="ownerLearnerHistory" class="hidden"></div>
+                        </section>
                         <!-- Quiz Upload -->
                         <div class="quiz-upload hidden">
                             <h3 data-i18n="loadQuiz">Load Quiz</h3>
@@ -278,8 +283,54 @@
                 </section>
 
                 <section id="tools" class="tab-pane">
-                    <div class="section-heading"><div><p class="page-eyebrow" data-i18n="tools">TOOLS</p><h2 data-i18n="tools">Tools</h2><p data-i18n="toolsIntro">Helpful study tools will live here.</p></div></div>
-                    <div class="dashboard-panel"><div class="empty-state"><div class="empty-state-icon">✦</div><h3 data-i18n="toolsComingSoon">Tools are coming soon</h3><p data-i18n="toolsEmptyText">We’ll add useful learning tools here in a future update.</p></div></div>
+                    <div class="section-heading"><div><p class="page-eyebrow" data-i18n="tools">TOOLS</p><h2 data-i18n="tools">Tools</h2><p data-i18n="toolsIntro">Plan your study, focus, and review.</p></div></div>
+                    <div class="tools-grid">
+                        <article class="dashboard-panel tool-panel">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="studyPlanner">STUDY PLANNER</p><h3 data-i18n="studyTasks">Study tasks</h3></div></div>
+                            <form id="studyTaskForm" class="tool-form">
+                                <label><span data-i18n="taskTitle">Task</span><input id="studyTaskTitle" type="text" maxlength="160" required data-i18n-placeholder="taskTitlePlaceholder"></label>
+                                <label><span data-i18n="scheduleFor">Schedule for</span><input id="studyTaskDate" type="datetime-local"></label>
+                                <button class="btn btn-primary" type="submit" data-i18n="addTask">Add task</button>
+                            </form>
+                            <div id="studyTaskList" class="study-task-list" aria-live="polite"></div>
+                        </article>
+                        <article class="dashboard-panel tool-panel">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="focusTimer">FOCUS TIMER</p><h3 data-i18n="focusTimer">Focus timer</h3></div></div>
+                            <div class="focus-clock"><strong id="focusTimerDisplay">25:00</strong><span id="focusTimerPhase" data-i18n="workSession">Work session</span></div>
+                            <div class="focus-actions"><button id="focusStart" class="btn btn-primary" type="button" data-i18n="start">Start</button><button id="focusPause" class="btn btn-secondary" type="button" data-i18n="pause" disabled>Pause</button><button id="focusReset" class="btn btn-secondary" type="button" data-i18n="reset">Reset</button></div>
+                            <form id="focusSettingsForm" class="tool-form focus-settings">
+                                <label><span data-i18n="workMinutes">Work (minutes)</span><input id="focusWorkMinutes" type="number" min="1" max="180" required></label>
+                                <label><span data-i18n="restMinutes">Rest (minutes)</span><input id="focusRestMinutes" type="number" min="1" max="60" required></label>
+                                <label><span data-i18n="flashcardInterval">Flashcard prompt interval (minutes)</span><input id="flashcardInterval" type="number" min="1" max="180" required></label>
+                                <button class="btn btn-secondary" type="submit" data-i18n="saveSettings">Save settings</button>
+                            </form>
+                        </article>
+                        <article class="dashboard-panel tool-panel">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="studyProgress">STUDY PROGRESS</p><h3 data-i18n="progressOverview">Progress overview</h3></div></div>
+                            <div class="tool-progress-grid">
+                                <div><strong id="toolsStudyTime">0</strong><span data-i18n="studyMinutes">Study minutes</span></div>
+                                <div><strong id="toolsFocusSessions">0</strong><span data-i18n="completedFocusSessions">Focus sessions</span></div>
+                                <div><strong id="toolsStudyStreak">0</strong><span data-i18n="streakDays">Day streak</span></div>
+                            </div>
+                        </article>
+                        <article class="dashboard-panel tool-panel flashcards-tool-panel">
+                            <div class="panel-heading"><div><p class="page-eyebrow" data-i18n="flashcards">FLASHCARDS</p><h3 data-i18n="myFlashcards">My flashcards</h3></div></div>
+                            <p class="flashcard-instructions" data-i18n="flashcardInstructions">Type a question on the front and its answer on the back.</p>
+                            <form id="flashcardDeckForm" class="tool-form">
+                                <label><span data-i18n="deckName">Deck name</span><input id="flashcardDeckName" type="text" maxlength="100" required></label>
+                                <button class="btn btn-secondary" type="submit" data-i18n="createDeck">Create deck</button>
+                            </form>
+                            <form id="flashcardForm" class="tool-form">
+                                <label><span data-i18n="chooseDeck">Deck</span><select id="flashcardDeckSelect" required></select></label>
+                                <label><span data-i18n="cardFront">Front</span><textarea id="flashcardFront" rows="2" maxlength="1000" required></textarea></label>
+                                <label><span data-i18n="cardBack">Back</span><textarea id="flashcardBack" rows="2" maxlength="1000" required></textarea></label>
+                                <button class="btn btn-primary" type="submit" data-i18n="addFlashcard">Add flashcard</button>
+                            </form>
+                            <div class="flashcard-actions"><button id="reviewFlashcards" class="btn btn-secondary" type="button" data-i18n="reviewCards">Review cards</button><span id="flashcardCount" class="form-hint"></span></div>
+                            <p id="toolFeedback" class="form-message" role="status" aria-live="polite"></p>
+                            <div id="flashcardList" class="flashcard-list"></div>
+                        </article>
+                    </div>
                 </section>
 
             </div>
@@ -299,6 +350,24 @@
                 <iframe id="fileViewer" title="File preview" data-i18n-title="filePreview"></iframe>
             </div>
         </div>
+        <dialog id="flashcardPrompt" class="flashcard-prompt" aria-labelledby="flashcardPromptTitle">
+            <h2 id="flashcardPromptTitle" data-i18n="flashcardCheckIn">Flashcard check-in</h2>
+            <section class="flashcard-prompt-card flashcard-prompt-question">
+                <span class="flashcard-prompt-label" data-i18n="questionSide">Question</span>
+                <p id="flashcardPromptFront" class="flashcard-prompt-text"></p>
+            </section>
+            <button id="flashcardPromptReveal" class="btn btn-primary" type="button" data-i18n="showAnswer">Show answer</button>
+            <div id="flashcardPromptAnswer" class="flashcard-prompt-answer hidden">
+                <section class="flashcard-prompt-card flashcard-prompt-response">
+                    <span class="flashcard-prompt-label" data-i18n="answerSide">Answer</span>
+                    <p id="flashcardPromptBack" class="flashcard-prompt-text"></p>
+                </section>
+                <div class="focus-actions flashcard-prompt-actions">
+                    <button id="flashcardMarkKnown" class="btn btn-success" type="button" data-i18n="markKnown">I know this</button>
+                    <button id="flashcardMarkReview" class="btn btn-secondary" type="button" data-i18n="needsReview">Needs review</button>
+                </div>
+            </div>
+        </dialog>
 
         <!-- Settings Modal -->
         <div id="settingsModal" class="modal hidden">
@@ -335,6 +404,7 @@
                         <label><input type="checkbox" id="notificationsToggle" checked><span data-i18n="inAppNotifications">Show in-app notifications</span></label>
                         <label><input type="checkbox" id="chatNotificationsToggle" checked><span data-i18n="chatNotifications">Community message alerts</span></label>
                         <label><input type="checkbox" id="announcementNotificationsToggle" checked><span data-i18n="announcementNotifications">Owner announcement alerts</span></label>
+                        <p class="settings-hint" data-i18n="browserPushFallback">Browser push is not configured for this app. In-app notifications remain available.</p>
                     </div>
                     <div class="setting-item settings-subsection">
                         <h3 data-i18n="privacySettings">Privacy</h3>
@@ -373,6 +443,7 @@
 </div>
     <script src="supabase-config.js"></script>
     <script src="portal-backend.js"></script>
+    <script src="study-tools.js"></script>
     <script src="script.js"></script>
 
     <!-- Service Worker Registration for PWA -->

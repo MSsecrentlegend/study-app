@@ -2693,8 +2693,39 @@ const PORTAL_TRANSLATIONS = {
         unsupportedFileType: 'Use a PDF, text, Markdown, or image file.', fileUploaded: 'File shared with all learners.',
         videoPublished: 'Video published for all learners.', videoUpdated: 'Video updated.', examUpdated: 'Exam updated.', examDeleted: 'Exam deleted.',
         fileUpdated: 'File updated.', fileDeleted: 'File deleted.',
-        tools: 'Tools', toolsIntro: 'Helpful study tools will live here.', toolsComingSoon: 'Tools are coming soon',
+        tools: 'Tools', toolsIntro: 'Plan your study, focus, and review.',
+        studyPlanner: 'STUDY PLANNER', studyTasks: 'Study tasks', taskTitle: 'Task',
+        taskTitlePlaceholder: 'What would you like to study?', scheduleFor: 'Schedule for',
+        addTask: 'Add task', completeTask: 'Mark complete', reopenTask: 'Mark incomplete',
+        deleteTask: 'Delete task', noTasks: 'No study tasks yet.', taskScheduled: 'Scheduled',
+        invalidFocusSettings: 'Use valid work, rest, and prompt intervals within the allowed ranges.',
+        safeCheckpointDeferred: 'Finish your exam or current edit before reviewing a card.',
+        createDeckFirst: 'Create a deck first', flashcardCount: '{count} cards',
+        focusTimer: 'Focus timer', workSession: 'Work session', restSession: 'Rest session',
+        workMinutes: 'Work (minutes)', restMinutes: 'Rest (minutes)',
+        flashcardInterval: 'Flashcard prompt interval (minutes)', saveSettings: 'Save settings',
+        studyProgress: 'STUDY PROGRESS', progressOverview: 'Progress overview',
+        studyMinutes: 'Study minutes', completedFocusSessions: 'Focus sessions',
+        streakDays: 'Day streak',
+        flashcards: 'FLASHCARDS', myFlashcards: 'My flashcards', deckName: 'Deck name',
+        flashcardInstructions: 'Type a question on the front and its answer on the back.',
+        createDeck: 'Create deck', chooseDeck: 'Deck', cardFront: 'Question (front)', cardBack: 'Answer (back)',
+        questionSide: 'Question', answerSide: 'Answer',
+        addFlashcard: 'Add flashcard', reviewCards: 'Review cards', noFlashcards: 'Create a deck and add a card to get started.',
+        known: 'Known', needsReviewStatus: 'Needs review', markKnown: 'I know this',
+        needsReview: 'Needs review', flashcardCheckIn: 'Flashcard check-in', showAnswer: 'Show answer',
+        ownerView: 'OWNER VIEW', learnerGrades: 'Learner grades',
+        overallAverage: 'Overall average', noAverageYet: 'No scores yet', pastExamAttempts: 'Past exam attempts',
+        attemptCount: '{count} attempts', examTitle: 'Exam', dateLabel: 'Date',
+        noLearners: 'No learner exam results yet.', noLearnerAttempts: 'No exam attempts yet.',
+        backToLearners: 'Back to learners', leaderboard: 'Leaderboard',
+        leaderboardFor: 'Leaderboard: {title}', noLeaderboardEntries: 'No scores yet for this exam.',
+        averageScore: 'Average score', rank: 'Rank', leaderboardLoading: 'Loading leaderboard…',
+        leaderboardLoadFailed: 'The leaderboard could not be loaded.',
+        browserPushFallback: 'Browser push is not configured for this app. In-app notifications remain available.',
+        toolsComingSoon: 'Tools are coming soon',
         toolsEmptyText: 'We’ll add useful learning tools here in a future update.',
+        start: 'Start', pause: 'Pause', reset: 'Reset',
         bio: 'Bio', bioPlaceholder: 'Tell other learners a little about yourself',
         profilePicture: 'Profile picture',
         fromTheOwner: 'FROM THE OWNER', announcements: 'Announcements', newAnnouncement: 'New announcement',
@@ -2718,7 +2749,7 @@ const PORTAL_TRANSLATIONS = {
         tutorialDashboard: 'Your dashboard brings together study progress, announcements, recent messages, and upcoming exams.',
         tutorialExams: 'Open Exams to take a quiz, review your results, and see upcoming exams.',
         tutorialResources: 'Use Videos for lessons and Files for shared books and study resources.',
-        tutorialCommunity: 'Community is the shared chat. Your profile button is at the bottom of the sidebar; Tools is ready for future features.',
+        tutorialCommunity: 'Community is the shared chat. Your profile button is at the bottom of the sidebar; Tools has a planner, focus timer, progress, and flashcards.',
         tutorialSettings: 'Use the sun/moon button to change the theme. Settings includes language, notifications, privacy, and tutorial options.',
         skipTutorial: 'Skip tour', finishTutorial: 'Finish',
         disableEmailConfirmation: 'Email confirmation is still enabled in Supabase. Turn it off to sign users in immediately.'
@@ -2811,8 +2842,39 @@ const PORTAL_TRANSLATIONS = {
         unsupportedFileType: 'استخدم PDF أو ملفاً نصياً أو Markdown أو صورة.', fileUploaded: 'تمت مشاركة الملف مع جميع المتعلمين.',
         videoPublished: 'تم نشر الفيديو لجميع المتعلمين.', videoUpdated: 'تم تحديث الفيديو.', examUpdated: 'تم تحديث الاختبار.', examDeleted: 'تم حذف الاختبار.',
         fileUpdated: 'تم تحديث الملف.', fileDeleted: 'تم حذف الملف.',
-        tools: 'الأدوات', toolsIntro: 'ستتوفر أدوات الدراسة المفيدة هنا.', toolsComingSoon: 'الأدوات قادمة قريباً',
+        tools: 'الأدوات', toolsIntro: 'خطط لدراستك وركّز وراجع ما تعلمته.',
+        studyPlanner: 'مخطط الدراسة', studyTasks: 'مهام الدراسة', taskTitle: 'المهمة',
+        taskTitlePlaceholder: 'ما الموضوع الذي تريد دراسته؟', scheduleFor: 'موعد الدراسة',
+        addTask: 'إضافة مهمة', completeTask: 'تحديد كمكتملة', reopenTask: 'إعادة فتح المهمة',
+        deleteTask: 'حذف المهمة', noTasks: 'لا توجد مهام دراسية بعد.', taskScheduled: 'الموعد',
+        invalidFocusSettings: 'أدخل فترات عمل واستراحة ومراجعة صالحة ضمن الحدود المسموح بها.',
+        safeCheckpointDeferred: 'أكمل الاختبار أو التعديل الحالي قبل مراجعة البطاقة.',
+        createDeckFirst: 'أنشئ مجموعة أولاً', flashcardCount: '{count} بطاقة',
+        focusTimer: 'مؤقت التركيز', workSession: 'جلسة عمل', restSession: 'جلسة استراحة',
+        workMinutes: 'العمل (بالدقائق)', restMinutes: 'الاستراحة (بالدقائق)',
+        flashcardInterval: 'الفاصل بين مطالبات البطاقات (بالدقائق)', saveSettings: 'حفظ الإعدادات',
+        studyProgress: 'تقدم الدراسة', progressOverview: 'نظرة عامة على التقدم',
+        studyMinutes: 'دقائق الدراسة', completedFocusSessions: 'جلسات التركيز',
+        streakDays: 'أيام متتالية',
+        flashcards: 'البطاقات التعليمية', myFlashcards: 'بطاقاتي التعليمية', deckName: 'اسم المجموعة',
+        flashcardInstructions: 'اكتب سؤالاً على الوجه الأمامي وإجابته على الوجه الخلفي.',
+        createDeck: 'إنشاء مجموعة', chooseDeck: 'المجموعة', cardFront: 'السؤال (الوجه الأمامي)', cardBack: 'الإجابة (الوجه الخلفي)',
+        questionSide: 'السؤال', answerSide: 'الإجابة',
+        addFlashcard: 'إضافة بطاقة', reviewCards: 'مراجعة البطاقات', noFlashcards: 'أنشئ مجموعة وأضف بطاقة للبدء.',
+        known: 'معروفة', needsReviewStatus: 'تحتاج إلى مراجعة', markKnown: 'أعرف هذه الإجابة',
+        needsReview: 'تحتاج إلى مراجعة', flashcardCheckIn: 'مراجعة بطاقة تعليمية', showAnswer: 'إظهار الإجابة',
+        ownerView: 'عرض المالك', learnerGrades: 'درجات المتعلمين',
+        overallAverage: 'المعدل العام', noAverageYet: 'لا توجد درجات بعد', pastExamAttempts: 'محاولات الاختبارات السابقة',
+        attemptCount: '{count} محاولة', examTitle: 'الاختبار', dateLabel: 'التاريخ',
+        noLearners: 'لا توجد نتائج اختبارات للمتعلمين بعد.', noLearnerAttempts: 'لا توجد محاولات اختبارات بعد.',
+        backToLearners: 'العودة إلى المتعلمين', leaderboard: 'لوحة المتصدرين',
+        leaderboardFor: 'لوحة المتصدرين: {title}', noLeaderboardEntries: 'لا توجد درجات لهذا الاختبار بعد.',
+        averageScore: 'متوسط الدرجة', rank: 'الترتيب', leaderboardLoading: 'جارٍ تحميل لوحة المتصدرين…',
+        leaderboardLoadFailed: 'تعذر تحميل لوحة المتصدرين.',
+        browserPushFallback: 'إشعارات المتصفح الفورية غير مُعدة لهذا التطبيق. تظل الإشعارات داخل التطبيق متاحة.',
+        toolsComingSoon: 'الأدوات قادمة قريباً',
         toolsEmptyText: 'سنضيف أدوات تعليمية مفيدة هنا في تحديث مستقبلي.',
+        start: 'ابدأ', pause: 'إيقاف مؤقت', reset: 'إعادة',
         bio: 'نبذة', bioPlaceholder: 'أخبر المتعلمين قليلاً عن نفسك',
         profilePicture: 'الصورة الشخصية',
         fromTheOwner: 'من مالك المنصة', announcements: 'الإعلانات', newAnnouncement: 'إعلان جديد',
@@ -2836,7 +2898,7 @@ const PORTAL_TRANSLATIONS = {
         tutorialDashboard: 'تجمع لوحة التحكم تقدمك الدراسي والإعلانات والرسائل الحديثة والاختبارات القادمة.',
         tutorialExams: 'افتح الاختبارات لأداء الاختبارات ومراجعة النتائج والاطلاع على المواعيد القادمة.',
         tutorialResources: 'استخدم الفيديوهات للدروس والملفات للكتب ومصادر الدراسة المشتركة.',
-        tutorialCommunity: 'المجتمع هو المحادثة المشتركة. زر ملفك الشخصي أسفل القائمة الجانبية، والأدوات جاهزة للميزات المستقبلية.',
+        tutorialCommunity: 'المجتمع هو المحادثة المشتركة. زر ملفك الشخصي أسفل القائمة الجانبية، وتضم الأدوات مخططاً ومؤقت تركيز وتقدماً وبطاقات تعليمية.',
         tutorialSettings: 'استخدم زر الشمس والقمر لتغيير المظهر. تتضمن الإعدادات اللغة والإشعارات والخصوصية وخيارات الشرح.',
         skipTutorial: 'تخطي الجولة', finishTutorial: 'إنهاء',
         disableEmailConfirmation: 'لا يزال تأكيد البريد مفعلاً في Supabase. أوقفه لتسجيل دخول المستخدمين فوراً.'
@@ -2980,9 +3042,11 @@ function updateLanguageUI(lang) {
         PortalUI.renderAnnouncements();
         PortalUI.renderNotifications(PortalBackend.chatMessages || []);
         PortalUI.syncProfileDisplay();
+        PortalUI.renderOwnerLearners();
         FilesManager.render();
     }
     window.subjectsManager?.renderSubjectsList();
+    window.studyTools?.refreshLanguage();
     if (window.quizEngine?.currentQuiz && !document.getElementById('quizSession').classList.contains('hidden')) {
         window.quizEngine.displayQuestion();
     } else if (window.quizEngine?.currentQuiz
@@ -3001,6 +3065,10 @@ window.PortalUI = {
     videos: [],
     exams: [],
     announcements: [],
+    ownerExamResults: [],
+    ownerLearnerProfiles: [],
+    selectedOwnerLearnerId: null,
+    expandedLeaderboardIds: new Set(),
     notificationEntries: [],
     announcementToastTimers: new Map(),
     hasReceivedAnnouncements: false,
@@ -3037,6 +3105,32 @@ window.PortalUI = {
             value = value.replace(`{${name}}`, replacement);
         });
         return value;
+    },
+
+    playNotificationSound(type) {
+        const settings = this.storage.get('settings', {});
+        const categoryEnabled = type === 'chat'
+            ? settings.chatNotifications !== false
+            : settings.announcementNotifications !== false;
+        if (settings.soundEnabled === false || settings.notificationsEnabled === false || !categoryEnabled) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        try {
+            const context = new AudioContext();
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.connect(gain);
+            gain.connect(context.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.value = type === 'chat' ? 740 : 880;
+            gain.gain.setValueAtTime(0.18, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+            oscillator.onended = () => context.close();
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.3);
+        } catch (error) {
+            console.debug('Notification sound was unavailable:', error);
+        }
     },
 
     showFormMessage(element, message, type = '') {
@@ -3782,6 +3876,65 @@ window.PortalUI = {
                 window.quizEngine.showNameModal(exam);
             });
             card.append(info, start);
+            if (PortalBackend.configured && PortalBackend.user) {
+                const leaderboardButton = document.createElement('button');
+                leaderboardButton.className = 'btn btn-secondary';
+                leaderboardButton.type = 'button';
+                leaderboardButton.textContent = this.text('leaderboard');
+                leaderboardButton.setAttribute('aria-expanded', 'false');
+                leaderboardButton.addEventListener('click', async () => {
+                    let panel = card.querySelector('.leaderboard-panel');
+                    if (panel) {
+                        const expanded = !panel.classList.contains('hidden');
+                        panel.classList.toggle('hidden', expanded);
+                        leaderboardButton.setAttribute('aria-expanded', String(!expanded));
+                        return;
+                    }
+                    panel = document.createElement('div');
+                    panel.className = 'leaderboard-panel';
+                    const heading = document.createElement('h4');
+                    heading.textContent = this.text('leaderboardFor', { title: exam.title });
+                    const averageLabel = document.createElement('span');
+                    averageLabel.className = 'form-hint';
+                    averageLabel.textContent = this.text('averageScore');
+                    const status = document.createElement('p');
+                    status.className = 'empty-inline';
+                    status.textContent = this.text('leaderboardLoading');
+                    panel.append(heading, averageLabel, status);
+                    card.appendChild(panel);
+                    leaderboardButton.setAttribute('aria-expanded', 'true');
+                    try {
+                        const leaders = await PortalBackend.loadExamLeaderboard(exam.id);
+                        panel.replaceChildren(heading, averageLabel);
+                        if (!leaders.length) {
+                            status.textContent = this.text('noLeaderboardEntries');
+                            panel.appendChild(status);
+                            return;
+                        }
+                        leaders.forEach((leader, index) => {
+                            const row = document.createElement('div');
+                            row.className = 'leaderboard-row';
+                            const name = document.createElement('span');
+                            name.textContent = leader.display_name;
+                            const score = document.createElement('strong');
+                            score.textContent = `${new Intl.NumberFormat(
+                                this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
+                                { maximumFractionDigits: 2 }
+                            ).format(Number(leader.average_score) || 0)}%`;
+                            score.setAttribute('aria-label', `${this.text('averageScore')}: ${score.textContent}`);
+                            const rank = document.createElement('span');
+                            rank.textContent = `${this.text('rank')} ${index + 1}`;
+                            row.append(rank, name, score);
+                            panel.appendChild(row);
+                        });
+                    } catch (error) {
+                        status.textContent = this.text('leaderboardLoadFailed');
+                        panel.appendChild(status);
+                        console.error('Exam leaderboard loading failed:', error);
+                    }
+                });
+                card.appendChild(leaderboardButton);
+            }
             if (PortalBackend.configured && PortalBackend.isAdmin()) {
                 const adminActions = document.createElement('div');
                 adminActions.className = 'exam-admin-actions';
@@ -3795,9 +3948,140 @@ window.PortalUI = {
         });
     },
 
+    setOwnerExamResults(results, profiles = []) {
+        this.ownerExamResults = Array.isArray(results) ? results : [];
+        this.ownerLearnerProfiles = Array.isArray(profiles) ? profiles : [];
+        this.selectedOwnerLearnerId = null;
+        this.renderOwnerLearners();
+    },
+
+    renderOwnerLearners() {
+        const panel = document.getElementById('ownerLearnerGrades');
+        const list = document.getElementById('ownerLearnerList');
+        const history = document.getElementById('ownerLearnerHistory');
+        if (!panel || !list || !history) return;
+        const isOwner = PortalBackend.configured && PortalBackend.isAdmin();
+        panel.classList.toggle('hidden', !isOwner);
+        if (!isOwner) return;
+        if (this.selectedOwnerLearnerId) {
+            this.renderOwnerLearnerHistory(this.selectedOwnerLearnerId);
+            return;
+        }
+        list.classList.remove('hidden');
+        history.classList.add('hidden');
+        list.replaceChildren();
+        const learners = new Map(this.ownerLearnerProfiles.map(profile => [profile.id, {
+            id: profile.id,
+            name: profile.display_name || this.text('guest'),
+            scores: []
+        }]));
+        this.ownerExamResults.forEach(result => {
+            const learner = learners.get(result.user_id) || {
+                id: result.user_id,
+                name: result.display_name || result.student_name || this.text('guest'),
+                scores: []
+            };
+            learner.scores.push(Number(result.score) || 0);
+            learners.set(result.user_id, learner);
+        });
+        const summaries = [...learners.values()].map(learner => ({
+            ...learner,
+            average: learner.scores.length
+                ? learner.scores.reduce((total, score) => total + score, 0) / learner.scores.length
+                : null
+        })).sort((left, right) => {
+            if (left.average === null) return right.average === null ? left.name.localeCompare(right.name) : 1;
+            if (right.average === null) return -1;
+            return right.average - left.average || left.name.localeCompare(right.name);
+        });
+        if (!summaries.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text('noLearners');
+            list.appendChild(empty);
+            return;
+        }
+        summaries.forEach(learner => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'owner-learner-row';
+            const details = document.createElement('span');
+            const name = document.createElement('strong');
+            name.textContent = learner.name;
+            const attempts = document.createElement('small');
+            attempts.textContent = this.text('attemptCount', { count: String(learner.scores.length) });
+            details.append(name, attempts);
+            const average = document.createElement('b');
+            average.textContent = learner.average === null ? this.text('noAverageYet') : `${new Intl.NumberFormat(
+                this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
+                { maximumFractionDigits: 2 }
+            ).format(learner.average)}%`;
+            average.setAttribute('aria-label', `${this.text('overallAverage')}: ${average.textContent}`);
+            button.append(details, average);
+            button.addEventListener('click', () => this.renderOwnerLearnerHistory(learner.id));
+            list.appendChild(button);
+        });
+    },
+
+    renderOwnerLearnerHistory(userId) {
+        const list = document.getElementById('ownerLearnerList');
+        const history = document.getElementById('ownerLearnerHistory');
+        const learnerResults = this.ownerExamResults
+            .filter(result => result.user_id === userId && result.created_at)
+            .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
+        const learnerName = learnerResults[0]?.display_name
+            || learnerResults[0]?.student_name
+            || this.ownerLearnerProfiles.find(profile => profile.id === userId)?.display_name
+            || this.text('guest');
+        this.selectedOwnerLearnerId = userId;
+        list.classList.add('hidden');
+        history.classList.remove('hidden');
+        history.replaceChildren();
+        const back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'btn btn-secondary';
+        back.textContent = this.text('backToLearners');
+        back.addEventListener('click', () => {
+            this.selectedOwnerLearnerId = null;
+            this.renderOwnerLearners();
+        });
+        const heading = document.createElement('h4');
+        heading.className = 'owner-history-heading';
+        heading.textContent = `${learnerName} — ${this.text('pastExamAttempts')}`;
+        history.append(back, heading);
+        if (!learnerResults.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-inline';
+            empty.textContent = this.text('noLearnerAttempts');
+            history.appendChild(empty);
+            return;
+        }
+        const rows = document.createElement('div');
+        rows.className = 'exam-results-list';
+        learnerResults.forEach(result => {
+            const row = document.createElement('div');
+            row.className = 'exam-result-row';
+            const title = document.createElement('strong');
+            title.textContent = result.quiz_title || this.text('examTitle');
+            const date = document.createElement('time');
+            date.dateTime = result.created_at;
+            const parsedDate = new Date(result.created_at);
+            date.textContent = Number.isNaN(parsedDate.getTime()) ? '' : new Intl.DateTimeFormat(
+                this.storage.get('language', 'ar') === 'ar' ? 'ar' : 'en',
+                { dateStyle: 'medium' }
+            ).format(parsedDate);
+            const score = document.createElement('b');
+            score.textContent = `${result.score}%`;
+            row.append(title, date, score);
+            rows.appendChild(row);
+        });
+        history.appendChild(rows);
+    },
+
     renderExamResults() {
         const container = document.getElementById('examResultsList');
         if (!container) return;
+        window.studyTools?.renderProgress();
         const results = [...this.storage.get('quizResults', [])].reverse();
         container.replaceChildren();
         if (!results.length) {
@@ -4209,6 +4493,8 @@ window.PortalUI = {
         document.getElementById('showFileForm').classList.toggle('hidden', !isAdmin);
         document.getElementById('showVideoForm').classList.toggle('hidden', !isAdmin);
         document.getElementById('showAnnouncementForm').classList.toggle('hidden', !isAdmin);
+        document.getElementById('ownerLearnerGrades').classList.toggle('hidden', !isAdmin);
+        this.renderOwnerLearners();
         document.getElementById('videoLocalNotice').classList.toggle('hidden', PortalBackend.configured);
         if (PortalBackend.configured && !user) {
             this.videos = [];
@@ -4431,13 +4717,18 @@ window.PortalUI = {
     setAnnouncements(announcements) {
         const previousIds = new Set(this.announcements.map(item => item.id));
         this.announcements = announcements || [];
+        const newAnnouncements = this.hasReceivedAnnouncements
+            ? this.announcements.filter(item => !previousIds.has(item.id))
+            : [];
+        if (newAnnouncements.some(item => item.created_by !== PortalBackend.user?.id)) {
+            this.playNotificationSound('announcement');
+        }
         if (!this.hasReceivedAnnouncements) {
             const newest = this.announcements[0];
             if (newest) this.showAnnouncementToast(newest);
             this.hasReceivedAnnouncements = true;
         } else {
-            this.announcements
-                .filter(item => !previousIds.has(item.id))
+            newAnnouncements
                 .slice(0, 3)
                 .forEach(item => this.showAnnouncementToast(item));
         }
@@ -4665,6 +4956,7 @@ document.addEventListener('DOMContentLoaded', () => {
     UIController.init(storage);
     FilesManager.init(storage);
     PortalUI.init(storage);
+    window.studyTools = new window.StudyToolsManager(storage);
 
     // Now update language UI
     updateLanguageUI(lang);

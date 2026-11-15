@@ -7,6 +7,8 @@ window.PortalBackend = {
     announcements: [],
     chatMessages: [],
     chatAvatarCache: new Map(),
+    hasReceivedChat: false,
+    seenChatMessageIds: new Set(),
     configured: false,
     suppressProgressSync: false,
     progressSyncTimer: null,
@@ -72,6 +74,8 @@ window.PortalBackend = {
             this.progressSyncTimer = null;
             this.chatMessages = [];
             this.chatAvatarCache.clear();
+            this.hasReceivedChat = false;
+            this.seenChatMessageIds.clear();
             if (this.ui) {
                 this.ui.chatEditingMessageId = null;
                 this.ui.chatSavingMessageId = null;
@@ -117,6 +121,7 @@ window.PortalBackend = {
             window.clearInterval(this.chatPollTimer);
             this.chatPollTimer = null;
             this.chatMessages = [];
+            this.ui.setOwnerExamResults([]);
             this.ui.renderChatMessages([]);
             this.ui.renderNotifications([]);
             this.ui.setSharedFiles([]);
@@ -129,6 +134,8 @@ window.PortalBackend = {
                 this.loadChat({ forceBottom: userChanged })
             ]);
             await this.loadExamResults();
+            if (this.isAdmin()) await this.loadOwnerExamResults();
+            else this.ui.setOwnerExamResults([]);
             if (sessionUpdateId !== this.sessionUpdateId) return;
             this.startChatPolling();
         } catch (error) {
@@ -232,7 +239,7 @@ window.PortalBackend = {
     async loadAnnouncements() {
         const { data, error } = await this.client
             .from('announcements')
-            .select('id,title,body,created_at')
+            .select('id,title,body,created_at,created_by')
             .order('created_at', { ascending: false })
             .limit(20);
         if (error) throw error;
@@ -257,7 +264,7 @@ window.PortalBackend = {
         if (!this.isAdmin()) throw new Error('Only the platform owner can publish announcements.');
         const { data, error } = await this.client.from('announcements')
             .insert({ title, body, created_by: this.user.id })
-            .select('id,title,body,created_at')
+            .select('id,title,body,created_at,created_by')
             .single();
         if (error) throw error;
         this.announcements = [data, ...this.announcements];
@@ -324,6 +331,50 @@ window.PortalBackend = {
         });
         this.storage.set('quizResults', results);
         this.ui.refreshAfterSync();
+    },
+
+    async loadOwnerExamResults() {
+        if (!this.isAdmin()) {
+            this.ui.setOwnerExamResults([]);
+            return;
+        }
+        const ownerId = this.user.id;
+        const pageSize = 500;
+        const results = [];
+        for (let from = 0; ; from += pageSize) {
+            const { data, error } = await this.client.from('exam_results')
+                .select('user_id,student_name,quiz_title,score,created_at')
+                .order('created_at', { ascending: false })
+                .range(from, from + pageSize - 1);
+            if (error) throw error;
+            results.push(...(data || []));
+            if (!data || data.length < pageSize) break;
+        }
+        const profiles = [];
+        for (let from = 0; ; from += pageSize) {
+            const { data, error } = await this.client.from('profiles')
+                .select('id,display_name')
+                .order('display_name', { ascending: true })
+                .range(from, from + pageSize - 1);
+            if (error) throw error;
+            profiles.push(...(data || []));
+            if (!data || data.length < pageSize) break;
+        }
+        if (this.user?.id !== ownerId || !this.isAdmin()) return;
+        const names = new Map(profiles.map(profile => [profile.id, profile.display_name]));
+        this.ui.setOwnerExamResults(results.map(result => ({
+            ...result,
+            display_name: names.get(result.user_id) || result.student_name
+        })), profiles);
+    },
+
+    async loadExamLeaderboard(examId) {
+        if (!this.user) throw new Error('Sign in to view exam leaderboards.');
+        const { data, error } = await this.client.rpc('get_exam_leaderboard', {
+            p_exam_id: examId
+        });
+        if (error) throw error;
+        return data || [];
     },
 
     async loadProgress() {
@@ -647,6 +698,14 @@ window.PortalBackend = {
             return;
         }
         const messages = data.reverse();
+        const hasNewIncomingMessage = this.hasReceivedChat && messages.some(message =>
+            !this.seenChatMessageIds.has(message.id) && message.user_id !== this.user.id
+        );
+        messages.forEach(message => this.seenChatMessageIds.add(message.id));
+        if (this.seenChatMessageIds.size > 500) {
+            this.seenChatMessageIds = new Set([...this.seenChatMessageIds].slice(-250));
+        }
+        this.hasReceivedChat = true;
         try {
             this.chatMessages = await this.addChatAvatars(messages);
         } catch (avatarError) {
@@ -654,6 +713,7 @@ window.PortalBackend = {
             this.ui.showBackendError(avatarError.message);
             this.chatMessages = messages.map(message => ({ ...message, avatar_url: null }));
         }
+        if (hasNewIncomingMessage) this.ui.playNotificationSound('chat');
         this.ui.renderChatMessages(this.chatMessages, forceBottom);
     },
 

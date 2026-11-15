@@ -2537,3 +2537,124 @@ body.dark-theme {
     .onboarding-actions .btn { width: 100%; justify-content: center; }
     .onboarding-modal .text-button { margin: 0; }
 }
+
+#settingsModal { padding: clamp(.5rem, 3vw, 1.5rem); }
+#settingsModal .modal-content {
+    display: flex;
+    flex-direction: column;
+    width: min(34rem, 100%);
+    max-height: min(90vh, 52rem);
+    max-height: min(90dvh, 52rem);
+    overflow: hidden;
+}
+#settingsModal .modal-header { flex: 0 0 auto; padding: 1rem 1.25rem; }
+#settingsModal .modal-header h2 { min-width: 0; }
+#settingsModal .modal-close { flex: 0 0 2.75rem; width: 2.75rem; height: 2.75rem; }
+#settingsModal .modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+.tools-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.tool-panel { min-width: 0; border: 1px solid var(--border-color); border-radius: 16px; background: var(--surface-color); }
+.tool-form { display: grid; gap: .65rem; margin: .75rem 0; }
+.tool-form label { display: grid; min-width: 0; gap: .3rem; color: var(--text-secondary); font-size: .76rem; font-weight: 650; }
+.tool-form input, .tool-form select, .tool-form textarea {
+    width: 100%; min-width: 0; padding: .65rem .75rem; border: 1px solid var(--border-color);
+    border-radius: 9px; background: var(--surface-color); color: var(--text-primary); font: inherit;
+}
+.tool-form textarea { resize: vertical; }
+.study-task-list, .flashcard-list { display: grid; gap: .5rem; margin-top: .75rem; }
+.study-task-row, .flashcard-row, .leaderboard-row, .owner-learner-row {
+    display: flex; align-items: center; justify-content: space-between; gap: .65rem;
+    min-width: 0; padding: .7rem; border-radius: 10px; background: var(--background-color);
+}
+.study-task-row > div, .flashcard-row > div { display: grid; min-width: 0; gap: .2rem; }
+.study-task-row strong, .flashcard-row strong, .owner-learner-row strong { overflow-wrap: anywhere; }
+.study-task-row time, .study-task-row small, .flashcard-row small { color: var(--text-secondary); font-size: .72rem; }
+.study-task-row button, .flashcard-row button { flex: 0 0 auto; }
+.study-task-row.is-complete { opacity: .68; }
+.study-task-row.is-complete strong { text-decoration: line-through; }
+.focus-clock { display: grid; justify-items: center; gap: .2rem; padding: .6rem; }
+.focus-clock strong { color: var(--primary-color); font-size: clamp(2.4rem, 7vw, 3.4rem); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.focus-clock span { color: var(--text-secondary); font-size: .8rem; }
+.focus-actions, .flashcard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .55rem 0; }
+.focus-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: .7rem; border-top: 1px solid var(--border-color); }
+.focus-settings label:nth-child(3), .focus-settings button { grid-column: 1 / -1; }
+.tool-progress-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.tool-progress-grid > div { display: grid; gap: .2rem; min-width: 0; padding: .65rem; border-radius: 10px; background: var(--background-color); }
+.tool-progress-grid strong { color: var(--primary-color); font-size: 1.25rem; }
+.tool-progress-grid span { color: var(--text-secondary); font-size: .7rem; }
+.flashcards-tool-panel { grid-column: 1 / -1; width: min(100%, 60rem); justify-self: center; }
+.flashcard-instructions { margin: -.25rem 0 .8rem; color: var(--text-secondary); font-size: .82rem; }
+.flashcard-list {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: .8rem; width: min(100%, 52rem); max-height: min(50vh, 32rem); margin: .8rem auto 0;
+    padding: .35rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.flashcard-row {
+    display: grid; align-content: start; gap: .7rem; min-width: 0; padding: 1rem;
+    border: 1px solid var(--border-color); border-radius: 14px; background: var(--surface-color);
+    box-shadow: var(--shadow-sm);
+}
+.flashcard-row .flashcard-content { display: grid; gap: .65rem; min-width: 0; }
+.flashcard-side { display: grid; gap: .25rem; min-width: 0; }
+.flashcard-side + .flashcard-side { padding-top: .6rem; border-top: 1px solid var(--border-color); }
+.flashcard-side-label { color: var(--text-secondary); font-size: .68rem; font-weight: 700; letter-spacing: .04em; }
+.flashcard-row strong, .flashcard-row p { margin: 0; color: var(--text-primary); font-size: .84rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.flashcard-row .flashcard-status { justify-self: start; padding: .18rem .5rem; border-radius: 99px; background: var(--background-color); }
+.flashcard-row .focus-actions { padding-top: .55rem; border-top: 1px solid var(--border-color); }
+.flashcard-prompt:not([open]) { display: none; }
+.flashcard-prompt[open] {
+    position: fixed; inset: 0; display: grid; align-content: start; gap: 1rem;
+    width: min(34rem, calc(100vw - 1.5rem)); height: fit-content; max-width: none;
+    max-height: min(86vh, 42rem); max-height: min(86dvh, 42rem); box-sizing: border-box;
+    margin: auto; padding: clamp(1.15rem, 5vw, 2rem); overflow-y: auto; overscroll-behavior: contain;
+    border: 1px solid var(--border-color); border-radius: 1.4rem;
+    background: var(--surface-color); color: var(--text-primary); box-shadow: var(--shadow-lg);
+}
+.flashcard-prompt::backdrop { background: rgba(15, 23, 42, .62); backdrop-filter: blur(6px); }
+.flashcard-prompt h2 { margin: 0; color: var(--text-primary); font-size: clamp(1.2rem, 4vw, 1.55rem); text-align: center; }
+.flashcard-prompt-card {
+    display: grid; align-content: center; justify-items: center; gap: .55rem; min-height: 8rem;
+    padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 1rem;
+    text-align: center;
+}
+.flashcard-prompt-question { background: color-mix(in srgb, var(--primary-color) 8%, var(--surface-color)); }
+.flashcard-prompt-response { background: var(--background-color); }
+.flashcard-prompt-label { color: var(--primary-color); font-size: .75rem; font-weight: 750; }
+.flashcard-prompt-text {
+    margin: 0; color: var(--text-primary); font-size: clamp(1rem, 3vw, 1.25rem);
+    line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.flashcard-prompt > #flashcardPromptReveal { width: 100%; min-height: 3rem; justify-content: center; }
+.flashcard-prompt-answer { display: grid; gap: 1rem; }
+.flashcard-prompt-actions { justify-content: center; margin: 0; }
+.flashcard-prompt-actions .btn { flex: 1 1 10rem; min-height: 2.9rem; justify-content: center; }
+.leaderboard-panel { flex: 1 0 100%; display: grid; gap: .4rem; padding: .8rem; border: 1px solid var(--border-color); border-radius: 12px; background: var(--surface-color); }
+.leaderboard-row { padding: .45rem .6rem; font-size: .78rem; }
+.owner-learner-row { width: 100%; border: 0; color: var(--text-primary); font: inherit; text-align: start; cursor: pointer; }
+.owner-learner-row:hover, .owner-learner-row:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+.owner-history-heading { margin: 1rem 0 .5rem; }
+
+.chat-message-actions button {
+    flex: 0 0 auto; min-width: 2.75rem; min-height: 2.75rem; padding: .45rem .55rem;
+    border-radius: 8px; font-size: .72rem; line-height: 1.15; touch-action: manipulation;
+}
+.chat-message-actions button:hover { background: color-mix(in srgb, var(--primary-color) 10%, transparent); text-decoration: none; }
+
+@media (max-width: 760px) {
+    .tools-grid { grid-template-columns: minmax(0, 1fr); }
+    .chat-message { max-width: 95%; }
+    .chat-message-heading { align-items: center; }
+    .chat-message-actions { gap: .2rem; }
+}
+
+@media (max-width: 520px) {
+    #settingsModal { align-items: stretch; padding: .45rem; }
+    #settingsModal .modal-content { width: 100%; max-height: 100%; border-radius: .65rem; }
+    #settingsModal .modal-header { padding: .65rem .85rem; }
+    #settingsModal .modal-body { padding: .85rem; }
+    .focus-settings { grid-template-columns: minmax(0, 1fr); }
+    .focus-settings label:nth-child(3), .focus-settings button { grid-column: auto; }
+    .tool-progress-grid { gap: .35rem; }
+    .tool-progress-grid > div { padding: .5rem; }
+    .chat-message-actions button { min-width: 2.75rem; min-height: 2.75rem; padding: .4rem; }
+}

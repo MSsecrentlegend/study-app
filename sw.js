@@ -1,12 +1,13 @@
 // Service Worker for offline functionality and caching strategy
 // Cache version auto-updates daily to bust old caches
 
-const CACHE_VERSION = 'luma-portal-v28-' + new Date().toISOString().split('T')[0];
+const CACHE_VERSION = 'luma-portal-v33-' + new Date().toISOString().split('T')[0];
 const CACHE_URLS = [
   '/',
   '/index.html',
   '/style.css',
   '/script.js',
+  '/study-tools.js',
   '/portal-backend.js',
   '/Pic.png',
   '/manifest.json'
@@ -25,6 +26,7 @@ self.addEventListener('install', (event) => {
           '/index.html',
           '/style.css',
           '/script.js',
+          '/study-tools.js',
           '/manifest.json'
         ]);
       });
