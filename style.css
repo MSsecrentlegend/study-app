@@ -2645,6 +2645,20 @@ body.dark-theme {
     .chat-message { max-width: 95%; }
     .chat-message-heading { align-items: center; }
     .chat-message-actions { gap: .2rem; }
+    .exam-catalog { grid-template-columns: minmax(0, 1fr); }
+    .exam-card { align-items: stretch; flex-direction: column; min-width: 0; }
+    .exam-card > div:first-child { flex-basis: auto; min-width: 0; }
+    .exam-card .btn { width: 100%; justify-content: center; white-space: normal; }
+    .exam-card > .leaderboard-panel { flex: 0 1 auto; width: 100%; min-width: 0; }
+    .leaderboard-panel { min-width: 0; }
+    .leaderboard-panel h4 { overflow-wrap: anywhere; }
+    .leaderboard-row {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+        gap: .2rem .65rem; min-width: 0;
+    }
+    .leaderboard-row > span:first-child { grid-column: 1; grid-row: 1; }
+    .leaderboard-row > span:nth-child(2) { grid-column: 1; grid-row: 2; min-width: 0; overflow-wrap: anywhere; }
+    .leaderboard-row > strong { grid-column: 2; grid-row: 1 / span 2; white-space: nowrap; text-align: end; }
 }
 
 @media (max-width: 520px) {
